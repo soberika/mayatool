@@ -43,7 +43,7 @@ PROFILES = {
 DEFAULTS = dict(core.SKIRT_DEFAULTS, skirt=True, start_offset=None, transition=None,
                 smooth_passes=3, maximum=4, hide_original=False, keep_all_influences=False,
                 skirt_on_cv=True, layer_distance=None, leg_contact=None, contact_strength=0.9,
-                sweep_sit=True, contact_smooth=8, sweep_scale=0.5, widen=0.0, widen_back=0.0)
+                sweep_sit=True, sweep_side=False, contact_smooth=8, sweep_scale=0.5, widen=0.0, widen_back=0.0)
 SUFFIX = '_mcdRig'
 TOLERANCE_SUM = 1e-4
 TOLERANCE_SHAPE = 1e-3   # scene units (cm)
@@ -149,7 +149,7 @@ def weight_base(base, body, info, params, progress):
     1. Body lookups (with arms for sleeves, without arms for the skirt).
     2. Soft skirt field (natural drape).
     3. Leg sweep: the body's legs are moved mathematically through test motions
-       (steps, legs back, spread, optional sitting). Skirt fabric that a leg
+       (steps, legs back, spread, optional sitting / one leg sideways). Skirt fabric that a leg
        touches or passes through follows that leg; everything else keeps the
        soft field. The rig is never moved.
     """
@@ -297,16 +297,22 @@ def leg_sweep_contact(base, vertices, body, info, params, progress):
     motions = [('Ruhe', 0.0, 0.0, 0.0, 0.0)] + [m for m in core.LEG_SWEEP if not wanted or m[0] in wanted]
     if params.get('sweep_sit', True):
         motions += list(core.LEG_SWEEP_SIT)
+    if params.get('sweep_side', False):
+        motions += list(core.LEG_SWEEP_SIDE)
+    full_range = [m[0] for m in core.LEG_SWEEP_SIT + core.LEG_SWEEP_SIDE]
     # Best contact per vertex and leg; fabric touched by both legs (in different
     # motions) is shared between them instead of jumping from one to the other.
     best = {}
     for number, (name, fwd_l, fwd_r, spread, knee) in enumerate(motions):
         progress('Beinbewegung pruefen: %s' % name, 26 + int(9 * number / len(motions)))
         steps = (1.0,) if name == 'Ruhe' else (0.5, 1.0)
-        # Walking motions scale with 'Bewegungsbereich'; sitting is always tested fully.
-        scale = 1.0 if name in [m[0] for m in core.LEG_SWEEP_SIT] else params.get('sweep_scale', 1.0)
+        if name in [m[0] for m in core.LEG_SWEEP_SIDE]:
+            steps = core.SIDE_STEPS
+        # Walking motions scale with 'Bewegungsbereich'; sitting and sideways are tested fully.
+        scale = 1.0 if name in full_range else params.get('sweep_scale', 1.0)
+        spread = tuple(s * scale for s in spread) if isinstance(spread, tuple) else spread * scale
         for posed in core.swept_leg_points(pts, rws, chain, frame, fwd_l * scale, fwd_r * scale,
-                                           spread * scale, knee * scale, steps):
+                                           spread, knee * scale, steps):
             finder = scene.ClosestPoint(posed, tris)
             for v in vertices:
                 tri, bary, distance = finder.query(base.points[v])

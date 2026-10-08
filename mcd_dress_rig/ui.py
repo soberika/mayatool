@@ -80,6 +80,7 @@ class DressRigWindow(object):
                                                     maxValue=10, value=pipeline.DEFAULTS['smooth_passes'],
                                                     columnWidth3=(150, 55, 260))
         self.c['sweep_sit'] = cmds.checkBox(label='Sitzen beruecksichtigen (Oberschenkel)', value=True)
+        self.c['sweep_side'] = cmds.checkBox(label='Bein seitlich beruecksichtigen (Schlitz, 40 Grad)', value=False)
         self.c['keep_all'] = cmds.checkBox(label='Alle Body-Influences in den Skin uebernehmen', value=False)
         self.c['hide'] = cmds.checkBox(label='Original nach Erfolg ausblenden', value=False)
         cmds.setParent('..')
@@ -170,6 +171,7 @@ class DressRigWindow(object):
         params['smooth_passes'] = cmds.intSliderGrp(self.c['smooth_passes'], query=True, value=True)
         params['keep_all_influences'] = cmds.checkBox(self.c['keep_all'], query=True, value=True)
         params['sweep_sit'] = cmds.checkBox(self.c['sweep_sit'], query=True, value=True)
+        params['sweep_side'] = cmds.checkBox(self.c['sweep_side'], query=True, value=True)
         params['hide_original'] = cmds.checkBox(self.c['hide'], query=True, value=True)
         return params
 

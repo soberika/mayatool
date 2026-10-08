@@ -226,6 +226,7 @@ def rotate_about(point, pivot, m):
 
 
 # Test motions for the leg sweep: (name, hip forward L, hip forward R, spread, knee bend).
+# spread is one value for both legs or a tuple (left, right).
 # Degrees; hip forward > 0 moves the foot forward, knee bend > 0 moves the shin back.
 LEG_SWEEP = (
     ('Schritt links vor', 30.0, -20.0, 0.0, 15.0),
@@ -234,6 +235,11 @@ LEG_SWEEP = (
     ('Beine gespreizt', 0.0, 0.0, 15.0, 0.0),
 )
 LEG_SWEEP_SIT = (('Sitzen', 80.0, 80.0, 5.0, 80.0),)
+# One leg lifted sideways (slit dresses): the fabric behind/next to that leg
+# is tested in small steps so a 40 degree sweep does not skip any fabric.
+LEG_SWEEP_SIDE = (('Bein links seitlich', 0.0, 0.0, (40.0, 0.0), 0.0),
+                  ('Bein rechts seitlich', 0.0, 0.0, (0.0, 40.0), 0.0))
+SIDE_STEPS = (0.25, 0.5, 0.75, 1.0)
 
 
 def swept_leg_points(points, rows, chain, frame, hip_fwd_l, hip_fwd_r, spread, knee_bend, steps=(0.5, 1.0)):
@@ -244,11 +250,12 @@ def swept_leg_points(points, rows, chain, frame, hip_fwd_l, hip_fwd_r, spread, k
     Only vertices with leg weight move; the rig is never touched.
     """
     lateral, forward = frame['lateral'], frame['forward']
+    spreads = tuple(spread) if isinstance(spread, (tuple, list)) else (spread, spread)
     for step in steps:
         mats = {}
-        for side, fwd in ((1, hip_fwd_l), (-1, hip_fwd_r)):
+        for side, fwd, spread_side in ((1, hip_fwd_l, spreads[0]), (-1, hip_fwd_r, spreads[1])):
             hip_m = rotation(lateral, -fwd * step)
-            hip_m = mat3_mul(rotation(forward, side * spread * step), hip_m)
+            hip_m = mat3_mul(rotation(forward, side * spread_side * step), hip_m)
             knee_m = rotation(lateral, knee_bend * step)
             hip = frame['hip_l'] if side > 0 else frame['hip_r']
             knee = frame['knee_l'] if side > 0 else frame['knee_r']
