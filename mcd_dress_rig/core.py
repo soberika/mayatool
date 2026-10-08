@@ -189,6 +189,27 @@ def skirt_roles(lateral, height, forward, frame, params):
     return roles, side
 
 
+def widen_offset(point, frame, start, transition, amount, back_extra):
+    """Horizontal push away from the vertical axis through the pelvis.
+
+    Fades in like the skirt field (start above the pelvis, over `transition`).
+    `back_extra` is added at the back centre: full straight behind, half at
+    45 degrees, zero at the sides and front. All layers at one place move the
+    same way, so stacked fabric stays together. Returns an offset vector.
+    """
+    if amount <= 0.0 and back_extra <= 0.0:
+        return (0.0, 0.0, 0.0)
+    lateral, height, forward = skirt_frame_coords(point, frame)
+    fade = smoothstep((start - height) / transition) if transition > 0.0 else 0.0
+    radius = math.sqrt(lateral * lateral + forward * forward)
+    if fade <= 0.0 or radius < 1e-9:
+        return (0.0, 0.0, 0.0)
+    back = max(0.0, -forward / radius)
+    push = fade * (amount + back_extra * back * back)
+    lat_axis, fwd_axis = frame['lateral'], frame['forward']
+    return tuple(push * (lateral * lat_axis[k] + forward * fwd_axis[k]) / radius for k in range(3))
+
+
 def rotation(axis, degrees):
     """3x3 rotation about a unit axis (right-hand rule), row-major nested lists."""
     a = math.radians(degrees)

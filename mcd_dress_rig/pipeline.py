@@ -8,11 +8,13 @@ Ablauf
      des Rockbeginns, Glaettung nur ueber Mesh-Kanten.
   3. Jedes Kleidteil uebernimmt die Gewichte der Basis per Closest Point
      (passende Basis-Shell, falls eindeutig, sonst die ganze Basis).
+  3b. Optional: Rock minimal aufweiten (nur die neuen Kopien, Original bleibt).
   4. Zurueckrechnen in die Bindepose des Bodys (inverses Linear Blend Skinning)
      und Binden mit exakt den bindPreMatrix-Werten des Bodys. Das Rig wird
      dabei NICHT bewegt.
   5. Pruefen: Gewichte (endlich, >= 0, Summe 1, <= 4 Influences) und Form
-     (die neue Kopie muss in der aktuellen Pose exakt wie das Original liegen).
+     (die neue Kopie muss in der aktuellen Pose exakt wie das Original liegen,
+     bzw. wie das aufgeweitete Original).
 
 Nur neue Nodes werden erzeugt; Original, Body, Rig und Animation bleiben unveraendert.
 """
@@ -41,7 +43,7 @@ PROFILES = {
 DEFAULTS = dict(core.SKIRT_DEFAULTS, skirt=True, start_offset=None, transition=None,
                 smooth_passes=3, maximum=4, hide_original=False, keep_all_influences=False,
                 skirt_on_cv=True, layer_distance=None, leg_contact=None, contact_strength=0.9,
-                sweep_sit=True, contact_smooth=8, sweep_scale=0.5)
+                sweep_sit=True, contact_smooth=8, sweep_scale=0.5, widen=0.0, widen_back=0.0)
 SUFFIX = '_mcdRig'
 TOLERANCE_SUM = 1e-4
 TOLERANCE_SHAPE = 1e-3   # scene units (cm)
@@ -400,6 +402,24 @@ def transfer(part, base, base_rows, params, fallback, report):
     return rows
 
 
+def widen_points(points, frame, params, report):
+    """Skirt points pushed outwards ('Rock aufweiten'); the original is untouched."""
+    amount, back = params.get('widen') or 0.0, params.get('widen_back') or 0.0
+    if not params['skirt'] or (amount <= 0.0 and back <= 0.0):
+        return points
+    out, moved, largest = [], 0, 0.0
+    for p in points:
+        o = core.widen_offset(p, frame, params['start_offset'], params['transition'], amount, back)
+        length = math.sqrt(core.dot(o, o))
+        if length > 1e-6:
+            moved += 1
+            largest = max(largest, length)
+        out.append((p[0] + o[0], p[1] + o[1], p[2] + o[2]))
+    report.add('  Rock aufgeweitet: %d Vertices, bis %.2f cm (Basis %.2f cm + hinten Mitte %.2f cm)',
+               moved, largest, amount, back)
+    return out
+
+
 def unskin(points, rows, skin_mats):
     _, om, _ = scene.api()
     rest = []
@@ -529,6 +549,8 @@ def run(body_name, base_name, part_names, params, progress=None):
     report.add('Achsen aus dem Skeleton: hoch %s, links %s, vorne %s',
                tuple(round(x, 3) for x in frame['up']),
                tuple(round(x, 3) for x in frame['lateral']), tuple(round(x, 3) for x in frame['forward']))
+    if params['widen'] < 0 or params['widen_back'] < 0:
+        raise RigError('Aufweiten: nur Werte >= 0 (cm).')
     report.add('Rockbeginn %.2f cm ueber dem Becken, Uebergang %.2f cm, Profilwerte: %s',
                params['start_offset'], params['transition'],
                ', '.join('%s=%s' % (k, params[k]) for k in sorted(core.SKIRT_DEFAULTS)))
@@ -573,8 +595,9 @@ def run(body_name, base_name, part_names, params, progress=None):
                 for i in row:
                     if i not in skin_mats:
                         skin_mats[i] = body.skin_matrix(i)
+            target = widen_points(part.points, frame, params, report)
             progress('Bindepose berechnen: %s' % scene.short(part.transform), step + 10)
-            rest = unskin(part.points, rows, skin_mats)
+            rest = unskin(target, rows, skin_mats)
             used = sorted(set(i for row in rows for i in row))
             influences = list(used)
             if params['keep_all_influences']:
@@ -594,7 +617,7 @@ def run(body_name, base_name, part_names, params, progress=None):
             if len(influences) > 32:
                 report.warn('%s: %d Joints im Skin. Die (vor Bento verfasste) SL-Formatseite nennt Joint-Index <= 31; '
                             'beim Upload pruefen.', scene.short(out), len(influences))
-            validate(out, out_shape, skin, part.points, params['maximum'], report)
+            validate(out, out_shape, skin, target, params['maximum'], report)
             if params['hide_original']:
                 plug = part.transform + '.visibility'
                 if cmds.getAttr(plug, settable=True):
