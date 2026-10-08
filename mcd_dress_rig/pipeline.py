@@ -51,7 +51,7 @@ DEFAULTS = dict(core.SKIRT_DEFAULTS, skirt=True, start_offset=None, transition=N
                 smooth_passes=3, maximum=4, hide_original=False, keep_all_influences=False,
                 skirt_on_cv=True, layer_distance=None, leg_contact=None, contact_strength=0.9,
                 sweep_sit=True, sweep_side=False, contact_smooth=8, sweep_scale=0.5, widen=0.0, widen_back=0.0,
-                upper_smooth=0)
+                upper_smooth=0, strip=None, strip_hold=1.0, strip_rings=3)
 SUFFIX = '_mcdRig'
 TOLERANCE_SUM = 1e-4
 TOLERANCE_SHAPE = 1e-3   # scene units (cm)
@@ -423,6 +423,21 @@ def transfer(part, base, base_rows, params, fallback, report):
     return rows
 
 
+def hold_strip(part, rows, info, params, report):
+    """'Streifen gerade halten': selected vertices of this part follow the pelvis together."""
+    chosen = (params.get('strip') or {}).get(part.transform)
+    if not chosen or params.get('strip_hold', 0.0) <= 0.0:
+        return rows
+    chosen = [v for v in chosen if 0 <= v < len(rows)]
+    m_index, cv_index = info['roles']['pelvis']
+    pelvis = cv_index if (params['skirt_on_cv'] and cv_index is not None) else m_index
+    rows, changed = core.hold_selection(rows, part.adjacency, chosen, {pelvis: 1.0}, params['strip_hold'],
+                                        params.get('strip_rings', 3), params['maximum'], m_index)
+    report.add('  Streifen gerade: %d Vertices gewaehlt, %d angepasst (am Becken %.2f, Uebergang %d Ringe)',
+               len(chosen), changed, params['strip_hold'], params.get('strip_rings', 3))
+    return rows
+
+
 def widen_points(points, frame, params, report):
     """Skirt points pushed outwards ('Rock aufweiten'); the original is untouched."""
     amount, back = params.get('widen') or 0.0, params.get('widen_back') or 0.0
@@ -631,6 +646,7 @@ def run(body_name, base_name, part_names, params, progress=None):
             report.add('Kleidteil %s: %d Vertices', scene.short(part.transform), len(part.points))
             progress('Uebertragen: %s' % scene.short(part.transform), step)
             rows = transfer(part, base, base_rows, params, info['roles']['pelvis'][0], report)
+            rows = hold_strip(part, rows, info, params, report)
             for row in rows:
                 for i in row:
                     if i not in skin_mats:

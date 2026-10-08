@@ -28,6 +28,7 @@ class DressRigWindow(object):
         self.cmds = cmds
         self.version = version
         self.c = {}
+        self.strip = {}   # part transform -> vertex indices to keep straight
         self._build()
 
     # ----------------------------------------------------------------- UI
@@ -74,6 +75,18 @@ class DressRigWindow(object):
                                                    precision=2, columnWidth2=(200, 80))
         self.c['widen'] = cmds.floatFieldGrp(label='Rock aufweiten (cm, 0 = aus)', value1=0.0,
                                              precision=2, columnWidth2=(200, 80))
+        cmds.text(label='Streifen gerade halten (z. B. hintere Mittelbahn): Vertices/Faces am KLEIDTEIL '
+                        'waehlen, alle Lagen.', align='left')
+        cmds.rowLayout(numberOfColumns=2, adjustableColumn=1)
+        cmds.button(label='Streifen aus Auswahl merken', command=lambda *_: self._safe(self._store_strip))
+        cmds.button(label='Streifen leeren', command=lambda *_: self._safe(self._clear_strip))
+        cmds.setParent('..')
+        self.c['strip_info'] = cmds.text(label='Kein Streifen gemerkt.', align='left')
+        self.c['strip_hold'] = cmds.floatSliderGrp(label='Streifen am Becken', field=True, minValue=0.0,
+                                                   maxValue=1.0, value=1.0, precision=2,
+                                                   columnWidth3=(150, 55, 260))
+        self.c['strip_rings'] = cmds.intSliderGrp(label='Streifen Uebergang (Ringe)', field=True, minValue=0,
+                                                  maxValue=10, value=3, columnWidth3=(150, 55, 260))
         self.c['widen_back'] = cmds.floatFieldGrp(label='Extra hinten Mitte (cm)', value1=0.0,
                                                   precision=2, columnWidth2=(200, 80))
         self.c['smooth_passes'] = cmds.intSliderGrp(label='Glaetten (Durchlaeufe)', field=True, minValue=0,
@@ -141,6 +154,34 @@ class DressRigWindow(object):
         transform = self._selected_mesh()
         self.cmds.textFieldButtonGrp(self.c['base'], edit=True, text=transform)
 
+    def _store_strip(self):
+        cmds = self.cmds
+        picked = cmds.ls(selection=True, long=True) or []
+        verts = cmds.ls(cmds.polyListComponentConversion(picked, toVertex=True) or [], flatten=True, long=True)
+        if not verts:
+            raise RigError('Bitte Vertices oder Faces des Streifens am Kleidteil auswaehlen.')
+        found = {}
+        for item in verts:
+            node, _, index = item.partition('.vtx[')
+            transform = scene.mesh_nodes(node)[0]
+            found.setdefault(transform, set()).add(int(index.rstrip(']')))
+        parts = cmds.textScrollList(self.c['parts'], query=True, allItems=True) or []
+        unknown = [scene.short(t) for t in found if t not in parts]
+        if unknown:
+            raise RigError('Streifen liegt nicht auf einem Kleidteil der Liste: %s. Erst das Kleidteil '
+                           'hinzufuegen, dann den Streifen dort auswaehlen.' % ', '.join(unknown))
+        for transform, ids in found.items():
+            self.strip.setdefault(transform, set()).update(ids)
+        self._show_strip()
+
+    def _clear_strip(self):
+        self.strip = {}
+        self._show_strip()
+
+    def _show_strip(self):
+        text = ', '.join('%s: %d Vertices' % (scene.short(t), len(ids)) for t, ids in self.strip.items())
+        self.cmds.text(self.c['strip_info'], edit=True, label='Streifen: ' + text if text else 'Kein Streifen gemerkt.')
+
     def _add_parts(self):
         picked = self.cmds.ls(selection=True, long=True, objectsOnly=True) or []
         if not picked:
@@ -182,6 +223,9 @@ class DressRigWindow(object):
         params['transition'] = cmds.floatFieldGrp(self.c['transition'], query=True, value1=True)
         params['layer_distance'] = cmds.floatFieldGrp(self.c['layer_distance'], query=True, value1=True)
         params['leg_contact'] = cmds.floatFieldGrp(self.c['leg_contact'], query=True, value1=True)
+        params['strip'] = {t: sorted(ids) for t, ids in self.strip.items()}
+        params['strip_hold'] = cmds.floatSliderGrp(self.c['strip_hold'], query=True, value=True)
+        params['strip_rings'] = cmds.intSliderGrp(self.c['strip_rings'], query=True, value=True)
         params['upper_smooth'] = cmds.intSliderGrp(self.c['upper_smooth'], query=True, value=True)
         params['widen'] = cmds.floatFieldGrp(self.c['widen'], query=True, value1=True)
         params['widen_back'] = cmds.floatFieldGrp(self.c['widen_back'], query=True, value1=True)

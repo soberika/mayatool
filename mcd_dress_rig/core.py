@@ -375,6 +375,35 @@ def smooth_within_sets(rows, adjacency, factors, passes, strength=0.5):
     return rows
 
 
+def hold_selection(rows, adjacency, selected, target, strength, rings, maximum, fallback):
+    """Pull selected vertices to one common row (e.g. pelvis only).
+
+    Every selected vertex gets the same mix, so a panel/strip moves as one
+    piece and keeps its shape. The pull fades out over `rings` edge rings
+    around the selection so the neighbouring fabric blends in.
+    Returns (rows, number of changed vertices).
+    """
+    if not selected or strength <= 0.0:
+        return rows, 0
+    rings = max(0, int(rings))
+    distance = {v: 0 for v in selected}
+    frontier = list(selected)
+    for ring in range(1, rings + 1):
+        nxt = []
+        for v in frontier:
+            for n in adjacency[v]:
+                if n not in distance:
+                    distance[n] = ring
+                    nxt.append(n)
+        frontier = nxt
+    rows = list(rows)
+    for v, d in distance.items():
+        amount = strength * (1.0 - smoothstep(d / float(rings + 1)))
+        if amount > 0.0:
+            rows[v] = normalize_row(mix_rows(rows[v], target, amount), maximum, fallback=fallback)
+    return rows, len(distance)
+
+
 def remove_opposite_knee(row, side, pairs):
     """Move lower-leg weight of the non-dominant side back to its thigh."""
     if side == 0.0:
