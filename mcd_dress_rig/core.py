@@ -1,0 +1,421 @@
+# -*- coding: utf-8 -*-
+"""Pure weight math for mcd. Dress Rig. No Maya import: testable outside Maya.
+
+Conventions
+-----------
+* A weight row is a dict {influence_index: weight}.
+* Matrices are 4x4 nested lists in Maya's row-vector convention:
+  point_out = point_in * M (translation in the last row).
+* The skirt frame is given by the caller: origin (pelvis), unit up, unit
+  lateral (towards the character's left) and unit forward axes.
+"""
+from __future__ import division
+
+import math
+
+
+def clamp(value, low=0.0, high=1.0):
+    return max(low, min(high, value))
+
+
+def smoothstep(value):
+    t = clamp(value)
+    return t * t * (3.0 - 2.0 * t)
+
+
+def dot(a, b):
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+
+
+def sub(a, b):
+    return (a[0] - b[0], a[1] - b[1], a[2] - b[2])
+
+
+def normalize_row(row, maximum=4, fallback=None, floor=1e-6):
+    """Keep the strongest `maximum` finite weights above `floor`, sum to 1."""
+    clean = [(i, float(w)) for i, w in row.items() if math.isfinite(w) and w > floor]
+    clean.sort(key=lambda item: (-item[1], item[0]))
+    clean = clean[:maximum]
+    total = sum(w for _, w in clean)
+    if total <= 1e-12:
+        if fallback is None:
+            raise ValueError('Gewichtszeile ohne gueltige Werte und ohne Ersatz-Influence.')
+        return {fallback: 1.0}
+    return {i: w / total for i, w in clean}
+
+
+def mix_rows(first, second, amount):
+    result = {i: w * (1.0 - amount) for i, w in first.items()}
+    for i, w in second.items():
+        result[i] = result.get(i, 0.0) + w * amount
+    return result
+
+
+def blend_rows(rows, factors):
+    """Weighted sum of rows (e.g. barycentric interpolation)."""
+    result = {}
+    for row, factor in zip(rows, factors):
+        if factor <= 0.0:
+            continue
+        for i, w in row.items():
+            result[i] = result.get(i, 0.0) + w * factor
+    return result
+
+
+def barycentric(point, a, b, c):
+    """Barycentric coordinates of the projection of point onto triangle abc."""
+    v0, v1, v2 = sub(b, a), sub(c, a), sub(point, a)
+    d00, d01, d11 = dot(v0, v0), dot(v0, v1), dot(v1, v1)
+    d20, d21 = dot(v2, v0), dot(v2, v1)
+    denom = d00 * d11 - d01 * d01
+    if abs(denom) < 1e-20:
+        # Degenerate triangle: use the nearest corner.
+        distances = [dot(sub(point, p), sub(point, p)) for p in (a, b, c)]
+        best = distances.index(min(distances))
+        return tuple(1.0 if k == best else 0.0 for k in range(3))
+    v = (d11 * d20 - d01 * d21) / denom
+    w = (d00 * d21 - d01 * d20) / denom
+    u = 1.0 - v - w
+    coords = [clamp(u), clamp(v), clamp(w)]
+    total = sum(coords) or 1.0
+    return tuple(x / total for x in coords)
+
+
+# ------------------------------------------------------------------ skirt
+SKIRT_DEFAULTS = {
+    'center_width': 1.0,   # 1.0 = full leg weight on the leg line; larger = softer centre
+    'center_hold': 0.55,   # pelvis share kept in the centre (between the legs)
+    'leg_follow': 0.75,    # overall amount given to the legs
+    'knee_follow': 0.6,    # amount moved from thigh to lower leg below the knee
+    'outer_follow': 0.9,   # leg share at the outer sides (skirt covers a spread leg)
+    'front_follow': 0.25,  # front centre follows the thighs more (sitting)
+    'back_hold': 0.0,      # back centre stays more with the pelvis (0: back follows legs)
+}
+
+
+def _unit(v):
+    length = math.sqrt(dot(v, v))
+    if length < 1e-9:
+        raise ValueError('Skeleton-Achse nicht bestimmbar (Joints liegen aufeinander).')
+    return (v[0] / length, v[1] / length, v[2] / length)
+
+
+def cross(a, b):
+    return (a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0])
+
+
+def make_frame(pelvis, hip_l, hip_r, knee_l, knee_r, ankle_l=None, ankle_r=None):
+    """Skirt frame from joint positions; axes come from the skeleton, not the scene.
+
+    Also stores the leg line (height -> lateral distance and forward offset of
+    the legs) so the skirt field knows where the leg really is at each height.
+    """
+    knees = tuple((knee_l[i] + knee_r[i]) * 0.5 for i in range(3))
+    hips = tuple((hip_l[i] + hip_r[i]) * 0.5 for i in range(3))
+    up = _unit(sub(hips, knees))
+    across = sub(hip_l, hip_r)
+    across = tuple(across[i] - dot(across, up) * up[i] for i in range(3))
+    lateral = _unit(across)
+    forward = _unit(cross(lateral, up))
+    frame = {
+        'hip_l': tuple(hip_l), 'hip_r': tuple(hip_r), 'knee_l': tuple(knee_l), 'knee_r': tuple(knee_r),
+        'origin': tuple(pelvis), 'up': up, 'lateral': lateral, 'forward': forward,
+        'half_width': 0.5 * math.sqrt(dot(across, across)),
+        'leg_length': dot(sub(hips, knees), up),
+        'knee_height': dot(sub(knees, pelvis), up),
+    }
+    pairs = [(hip_l, hip_r), (knee_l, knee_r)]
+    if ankle_l is not None and ankle_r is not None:
+        pairs.append((ankle_l, ankle_r))
+    line = []
+    for left, right in pairs:
+        l, r = sub(left, pelvis), sub(right, pelvis)
+        height = 0.5 * (dot(l, up) + dot(r, up))
+        side = 0.5 * (dot(l, lateral) - dot(r, lateral))
+        depth = 0.5 * (dot(l, forward) + dot(r, forward))
+        line.append((height, side, depth))
+    frame['leg_line'] = sorted(line, reverse=True)   # from hip (top) down
+    return frame
+
+
+def leg_line_at(frame, height):
+    """Lateral distance and forward offset of the legs at a height (linear, clamped)."""
+    line = frame.get('leg_line')
+    if not line:
+        return frame['half_width'], 0.0
+    if height >= line[0][0]:
+        return line[0][1], line[0][2]
+    for (h0, s0, d0), (h1, s1, d1) in zip(line, line[1:]):
+        if height >= h1:
+            t = (h0 - height) / (h0 - h1) if h0 != h1 else 0.0
+            return s0 + (s1 - s0) * t, d0 + (d1 - d0) * t
+    return line[-1][1], line[-1][2]
+
+
+def skirt_frame_coords(point, frame):
+    offset = sub(point, frame['origin'])
+    return (dot(offset, frame['lateral']), dot(offset, frame['up']), dot(offset, frame['forward']))
+
+
+def skirt_roles(lateral, height, forward, frame, params):
+    """Role weights before splitting into m-bones / collision volumes.
+
+    Returns {role: weight} with roles pelvis, thigh_l, thigh_r, knee_l, knee_r.
+    Symmetric (left/right mirror), continuous, sums to 1. Only the dominant
+    side gets lower-leg weight, fading to zero at the centre.
+    """
+    half = frame['half_width']
+    leg_side, leg_depth = leg_line_at(frame, height)
+    # side = +-1 on the leg line (times center_width): fabric next to, behind or
+    # in front of a leg follows that leg; the centre between the legs blends.
+    side = clamp(lateral / (max(leg_side, 0.25 * half) * params['center_width']), -1.0, 1.0)
+    left = smoothstep(0.5 * (side + 1.0))
+    outer = smoothstep(abs(side))
+    depth = clamp((forward - leg_depth) / half, -1.0, 1.0)
+    centre_hold = clamp(params['center_hold'] - params['front_follow'] * max(0.0, depth)
+                        + params['back_hold'] * max(0.0, -depth))
+    legs = params['leg_follow'] * (1.0 - centre_hold) * (1.0 - outer) + params['outer_follow'] * outer
+    length = frame['leg_length']
+    knee_depth = smoothstep((frame['knee_height'] + 0.18 * length - height) / (0.65 * length))
+    knee = params['knee_follow'] * knee_depth * outer
+    roles = {'pelvis': 1.0 - legs, 'thigh_l': legs * left, 'thigh_r': legs * (1.0 - left),
+             'knee_l': 0.0, 'knee_r': 0.0}
+    if side > 0.0:
+        roles['knee_l'] = roles['thigh_l'] * knee
+        roles['thigh_l'] -= roles['knee_l']
+    elif side < 0.0:
+        roles['knee_r'] = roles['thigh_r'] * knee
+        roles['thigh_r'] -= roles['knee_r']
+    return roles, side
+
+
+def rotation(axis, degrees):
+    """3x3 rotation about a unit axis (right-hand rule), row-major nested lists."""
+    a = math.radians(degrees)
+    c, s, t = math.cos(a), math.sin(a), 1.0 - math.cos(a)
+    x, y, z = axis
+    return [[t * x * x + c, t * x * y - s * z, t * x * z + s * y],
+            [t * x * y + s * z, t * y * y + c, t * y * z - s * x],
+            [t * x * z - s * y, t * y * z + s * x, t * z * z + c]]
+
+
+def rotate_about(point, pivot, m):
+    d = sub(point, pivot)
+    return tuple(pivot[r] + m[r][0] * d[0] + m[r][1] * d[1] + m[r][2] * d[2] for r in range(3))
+
+
+# Test motions for the leg sweep: (name, hip forward L, hip forward R, spread, knee bend).
+# Degrees; hip forward > 0 moves the foot forward, knee bend > 0 moves the shin back.
+LEG_SWEEP = (
+    ('Schritt links vor', 30.0, -20.0, 0.0, 15.0),
+    ('Schritt rechts vor', -20.0, 30.0, 0.0, 15.0),
+    ('Beine zurueck', -20.0, -20.0, 0.0, 0.0),
+    ('Beine gespreizt', 0.0, 0.0, 15.0, 0.0),
+)
+LEG_SWEEP_SIT = (('Sitzen', 80.0, 80.0, 5.0, 80.0),)
+
+
+def swept_leg_points(points, rows, chain, frame, hip_fwd_l, hip_fwd_r, spread, knee_bend, steps=(0.5, 1.0)):
+    """Yield posed copies of `points` for intermediate steps of one test motion.
+
+    chain[i] for each influence: (side, level) with side +1/-1 (0 = not a leg)
+    and level 1 = thigh, 2 = shin/foot. Pivots: hips and knees from the frame.
+    Only vertices with leg weight move; the rig is never touched.
+    """
+    lateral, forward = frame['lateral'], frame['forward']
+    for step in steps:
+        mats = {}
+        for side, fwd in ((1, hip_fwd_l), (-1, hip_fwd_r)):
+            hip_m = rotation(lateral, -fwd * step)
+            hip_m = mat3_mul(rotation(forward, side * spread * step), hip_m)
+            knee_m = rotation(lateral, knee_bend * step)
+            hip = frame['hip_l'] if side > 0 else frame['hip_r']
+            knee = frame['knee_l'] if side > 0 else frame['knee_r']
+            knee_moved = rotate_about(knee, hip, hip_m)
+            mats[side] = (hip, hip_m, knee_moved, knee_m)
+        posed = []
+        for p, row in zip(points, rows):
+            out, rest = [0.0, 0.0, 0.0], 0.0
+            for i, w in row.items():
+                side, level = chain[i]
+                if not side:
+                    rest += w
+                    continue
+                hip, hip_m, knee_moved, knee_m = mats[side]
+                q = rotate_about(p, hip, hip_m)
+                if level == 2:
+                    q = rotate_about(q, knee_moved, knee_m)
+                for k in range(3):
+                    out[k] += w * q[k]
+            for k in range(3):
+                out[k] += rest * p[k]
+            posed.append(tuple(out))
+        yield posed
+
+
+def mat3_mul(a, b):
+    return [[sum(a[r][k] * b[k][c] for k in range(3)) for c in range(3)] for r in range(3)]
+
+
+def contact_factor(distance, full, fade):
+    """1 while the fabric lies within `full` of the leg, fading to 0 at full + fade."""
+    if fade <= 0.0:
+        return 1.0 if distance <= full else 0.0
+    return 1.0 - smoothstep((distance - full) / fade)
+
+
+def roles_to_row(roles, pairs, shares):
+    """Split each role between its m-bone and collision volume.
+
+    pairs:  {role: (m_index, cv_index_or_None)}
+    shares: {role: collision-volume share 0..1}
+    """
+    row = {}
+    for role, weight in roles.items():
+        if weight <= 0.0:
+            continue
+        m_index, cv_index = pairs[role]
+        share = shares.get(role, 0.0) if cv_index is not None else 0.0
+        if share < 1.0:
+            row[m_index] = row.get(m_index, 0.0) + weight * (1.0 - share)
+        if share > 0.0:
+            row[cv_index] = row.get(cv_index, 0.0) + weight * share
+    return row
+
+
+def local_shares(body_row, pairs, global_shares):
+    """CV share per role taken from the body row where it has data."""
+    shares = {}
+    for role, (m_index, cv_index) in pairs.items():
+        if cv_index is None:
+            shares[role] = 0.0
+            continue
+        m_w, cv_w = body_row.get(m_index, 0.0), body_row.get(cv_index, 0.0)
+        shares[role] = cv_w / (m_w + cv_w) if m_w + cv_w > 0.05 else global_shares[role]
+    return shares
+
+
+def smooth_rows(rows, adjacency, factors, passes, strength=0.35):
+    passes = int(passes)
+    """Graph Laplacian smoothing; only vertices with factor > 0 change.
+
+    Neighbours come from mesh edges, so separate shells and the two sides of
+    a slit never exchange weights.
+    """
+    for _ in range(passes):
+        smoothed = []
+        for index, row in enumerate(rows):
+            neighbours = adjacency[index]
+            amount = strength * factors[index]
+            if amount <= 0.0 or not neighbours:
+                smoothed.append(row)
+                continue
+            average = {}
+            share = 1.0 / len(neighbours)
+            for n in neighbours:
+                for i, w in rows[n].items():
+                    average[i] = average.get(i, 0.0) + w * share
+            smoothed.append(mix_rows(row, average, amount))
+        rows = smoothed
+    return rows
+
+
+def smooth_within_sets(rows, adjacency, factors, passes, strength=0.5):
+    """Smooth after capping without adding influences.
+
+    Each vertex keeps its own (capped) influence set; only the values move
+    towards the neighbour average and are renormalised. This removes steps
+    where neighbouring vertices kept different joints.
+    """
+    passes = int(passes)
+    for _ in range(passes):
+        smoothed = []
+        for index, row in enumerate(rows):
+            neighbours = adjacency[index]
+            amount = strength * factors[index]
+            if amount <= 0.0 or not neighbours:
+                smoothed.append(row)
+                continue
+            share = 1.0 / len(neighbours)
+            mixed = {}
+            for i, w in row.items():
+                average = sum(rows[n].get(i, 0.0) for n in neighbours) * share
+                mixed[i] = w * (1.0 - amount) + average * amount
+            total = sum(mixed.values())
+            smoothed.append({i: w / total for i, w in mixed.items()} if total > 1e-12 else row)
+        rows = smoothed
+    return rows
+
+
+def remove_opposite_knee(row, side, pairs):
+    """Move lower-leg weight of the non-dominant side back to its thigh."""
+    if side == 0.0:
+        return row
+    wrong = 'knee_r' if side > 0.0 else 'knee_l'
+    thigh = 'thigh_r' if side > 0.0 else 'thigh_l'
+    row = dict(row)
+    for k_index, t_index in zip(pairs[wrong], pairs[thigh]):
+        if k_index is None or t_index is None:
+            continue
+        moved = row.pop(k_index, 0.0)
+        if moved:
+            row[t_index] = row.get(t_index, 0.0) + moved
+    return row
+
+
+# ------------------------------------------------------------- matrices
+def mat_identity():
+    return [[1.0 if r == c else 0.0 for c in range(4)] for r in range(4)]
+
+
+def mat_mul(a, b):
+    return [[sum(a[r][k] * b[k][c] for k in range(4)) for c in range(4)] for r in range(4)]
+
+
+def mat_from_flat(values):
+    return [list(values[r * 4:r * 4 + 4]) for r in range(4)]
+
+
+def mat_inverse(m):
+    n = 4
+    a = [list(m[r]) + [1.0 if r == c else 0.0 for c in range(n)] for r in range(n)]
+    for col in range(n):
+        pivot = max(range(col, n), key=lambda r: abs(a[r][col]))
+        if abs(a[pivot][col]) < 1e-14:
+            raise ValueError('Matrix ist nicht invertierbar.')
+        a[col], a[pivot] = a[pivot], a[col]
+        p = a[col][col]
+        a[col] = [x / p for x in a[col]]
+        for r in range(n):
+            if r != col and a[r][col]:
+                f = a[r][col]
+                a[r] = [x - f * y for x, y in zip(a[r], a[col])]
+    return [row[n:] for row in a]
+
+
+def transform_point(point, m):
+    x, y, z = point
+    out = [x * m[0][c] + y * m[1][c] + z * m[2][c] + m[3][c] for c in range(4)]
+    return (out[0] / out[3], out[1] / out[3], out[2] / out[3]) if abs(out[3] - 1.0) > 1e-12 else tuple(out[:3])
+
+
+def skin_point(rest, row, skin_mats):
+    """Linear blend skinning: rest * sum(w * bindPre_j * world_j)."""
+    blended = [[0.0] * 4 for _ in range(4)]
+    for i, w in row.items():
+        m = skin_mats[i]
+        for r in range(4):
+            for c in range(4):
+                blended[r][c] += w * m[r][c]
+    return transform_point(rest, blended)
+
+
+def unskin_point(posed, row, skin_mats):
+    """Inverse linear blend skinning: rest point that skins to `posed`."""
+    blended = [[0.0] * 4 for _ in range(4)]
+    for i, w in row.items():
+        m = skin_mats[i]
+        for r in range(4):
+            for c in range(4):
+                blended[r][c] += w * m[r][c]
+    return transform_point(posed, mat_inverse(blended))
