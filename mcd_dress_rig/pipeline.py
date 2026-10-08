@@ -43,7 +43,8 @@ PROFILES = {
 DEFAULTS = dict(core.SKIRT_DEFAULTS, skirt=True, start_offset=None, transition=None,
                 smooth_passes=3, maximum=4, hide_original=False, keep_all_influences=False,
                 skirt_on_cv=True, layer_distance=None, leg_contact=None, contact_strength=0.9,
-                sweep_sit=True, sweep_side=False, contact_smooth=8, sweep_scale=0.5, widen=0.0, widen_back=0.0)
+                sweep_sit=True, sweep_side=False, contact_smooth=8, sweep_scale=0.5, widen=0.0, widen_back=0.0,
+                upper_smooth=0)
 SUFFIX = '_mcdRig'
 TOLERANCE_SUM = 1e-4
 TOLERANCE_SHAPE = 1e-3   # scene units (cm)
@@ -212,6 +213,12 @@ def weight_base(base, body, info, params, progress):
     info['contact_vertices'] = touching
     progress('Basis glaetten', 36)
     rows = core.smooth_rows(rows, base.adjacency, factors, params['smooth_passes'])
+    # Bodice / sleeves / shoulder band: the closest-point transfer jumps between
+    # arm and chest triangles; optional smoothing makes those borders gradual.
+    upper = [1.0 - f for f in factors] if params.get('upper_smooth') else [0.0] * len(factors)
+    if params.get('upper_smooth'):
+        progress('Oberteil glaetten', 37)
+        rows = core.smooth_rows(rows, base.adjacency, upper, params['upper_smooth'])
     result = []
     for row, alpha, side in zip(rows, factors, sides):
         if alpha > 0.0:
@@ -220,8 +227,9 @@ def weight_base(base, body, info, params, progress):
     coupled = couple_layers(base, result, params['layer_distance'], params['maximum'], pelvis_m)
     info['coupled_vertices'] = sum(1 for c in coupled if c > 0.5)
     result = core.smooth_within_sets(result, base.adjacency,
-                                     [1.0 if f > 0 or c > 0 else 0.0 for f, c in zip(factors, coupled)],
-                                     params['smooth_passes'])
+                                     [1.0 if f > 0 or c > 0 or u > 0 else 0.0
+                                      for f, c, u in zip(factors, coupled, upper)],
+                                     max(params['smooth_passes'], params.get('upper_smooth') or 0))
     return result, factors
 
 
@@ -582,6 +590,7 @@ def run(body_name, base_name, part_names, params, progress=None):
                scene.short(base_t), len(base.points), base.shell_count, sum(1 for f in factors if f > 0),
                info.get('sleeve_vertices', 0), info.get('coupled_vertices', 0), params['layer_distance'],
                info.get('contact_vertices', 0), params['leg_contact'])
+    report.add('Glaetten: Rock %d, Oberteil %d Durchlaeufe', params['smooth_passes'], params['upper_smooth'])
     tests = ['Schritte/Spreizen x%.2f' % params['sweep_scale']]
     if params['sweep_sit']:
         tests.append('Sitzen')

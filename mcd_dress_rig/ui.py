@@ -79,6 +79,8 @@ class DressRigWindow(object):
         self.c['smooth_passes'] = cmds.intSliderGrp(label='Glaetten (Durchlaeufe)', field=True, minValue=0,
                                                     maxValue=10, value=pipeline.DEFAULTS['smooth_passes'],
                                                     columnWidth3=(150, 55, 260))
+        self.c['upper_smooth'] = cmds.intSliderGrp(label='Oberteil glaetten (Durchlaeufe)', field=True, minValue=0,
+                                                   maxValue=10, value=0, columnWidth3=(150, 55, 260))
         self.c['sweep_sit'] = cmds.checkBox(label='Sitzen beruecksichtigen (Oberschenkel)', value=True)
         self.c['sweep_side'] = cmds.checkBox(label='Bein seitlich beruecksichtigen (Schlitz, 40 Grad)', value=False)
         self.c['keep_all'] = cmds.checkBox(label='Alle Body-Influences in den Skin uebernehmen', value=False)
@@ -169,6 +171,7 @@ class DressRigWindow(object):
         params['transition'] = cmds.floatFieldGrp(self.c['transition'], query=True, value1=True)
         params['layer_distance'] = cmds.floatFieldGrp(self.c['layer_distance'], query=True, value1=True)
         params['leg_contact'] = cmds.floatFieldGrp(self.c['leg_contact'], query=True, value1=True)
+        params['upper_smooth'] = cmds.intSliderGrp(self.c['upper_smooth'], query=True, value=True)
         params['widen'] = cmds.floatFieldGrp(self.c['widen'], query=True, value1=True)
         params['widen_back'] = cmds.floatFieldGrp(self.c['widen_back'], query=True, value1=True)
         params['smooth_passes'] = cmds.intSliderGrp(self.c['smooth_passes'], query=True, value=True)
