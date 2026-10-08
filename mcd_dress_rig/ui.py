@@ -133,6 +133,8 @@ class DressRigWindow(object):
         self.cmds.text(self.c['body_info'], edit=True,
                        label='%s, %d Influences, Beinlaenge %.1f; %s' % (body.skin, len(body.influences),
                                                                         frame['leg_length'], cv))
+        # Profiles with a fixed leg distance etc. win over the skeleton-derived values.
+        self._apply_profile()
         self._say('Body geladen. Rockbeginn und Uebergang wurden aus dem Skeleton gesetzt.')
 
     def _load_base(self):
@@ -160,6 +162,15 @@ class DressRigWindow(object):
             if key in values:
                 self.cmds.floatSliderGrp(self.c[key], edit=True, value=values[key])
             self.cmds.floatSliderGrp(self.c[key], edit=True, enable=values.get('skirt', True))
+        for key in ('leg_contact', 'widen', 'widen_back'):
+            if key in values:
+                self.cmds.floatFieldGrp(self.c[key], edit=True, value1=values[key])
+        for key in ('smooth_passes', 'upper_smooth'):
+            if key in values:
+                self.cmds.intSliderGrp(self.c[key], edit=True, value=values[key])
+        for key in ('sweep_sit', 'sweep_side'):
+            if key in values:
+                self.cmds.checkBox(self.c[key], edit=True, value=values[key])
 
     def _params(self):
         cmds = self.cmds
