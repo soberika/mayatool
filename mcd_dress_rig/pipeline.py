@@ -32,9 +32,9 @@ PROFILES = {
     # Tested in Maya on a long slit dress (walking, hand on hip, leg sideways).
     # Besides the sliders it also sets fields and checkboxes (see ui.py).
     'Kleid mit Schlitz (getestet)': dict(center_width=1.2, center_hold=0.55, leg_follow=0.75, knee_follow=0.6,
-                                         outer_follow=0.9, front_follow=0.35, back_hold=0.3,
+                                         outer_follow=0.9, front_follow=0.45, back_hold=0.3,
                                          contact_strength=0.7, sweep_scale=1.0, skirt=True,
-                                         leg_contact=1.5, widen=0.0, widen_back=1.0,
+                                         leg_contact=2.0, layer_distance=6.0, widen=0.0, widen_back=1.0,
                                          smooth_passes=3, upper_smooth=5, sweep_sit=True, sweep_side=True),
     'Kleid mit Schlitz': dict(center_width=1.5, center_hold=0.55, leg_follow=0.75, knee_follow=0.6,
                               outer_follow=0.9, front_follow=0.25, back_hold=0.15, contact_strength=0.9,

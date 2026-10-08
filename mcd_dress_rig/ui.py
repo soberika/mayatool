@@ -162,7 +162,7 @@ class DressRigWindow(object):
             if key in values:
                 self.cmds.floatSliderGrp(self.c[key], edit=True, value=values[key])
             self.cmds.floatSliderGrp(self.c[key], edit=True, enable=values.get('skirt', True))
-        for key in ('leg_contact', 'widen', 'widen_back'):
+        for key in ('leg_contact', 'layer_distance', 'widen', 'widen_back'):
             if key in values:
                 self.cmds.floatFieldGrp(self.c[key], edit=True, value1=values[key])
         for key in ('smooth_passes', 'upper_smooth'):
