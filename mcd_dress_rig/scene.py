@@ -91,6 +91,11 @@ def skin_cluster(shape):
     return skins[0]
 
 
+def has_skin(shape):
+    cmds = api()[0]
+    return bool(cmds.ls(cmds.listHistory(shape, pruneDagObjects=True) or [], type='skinCluster'))
+
+
 def fn_skin(skin):
     _, om, oma = api()
     selection = om.MSelectionList()

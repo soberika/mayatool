@@ -143,7 +143,10 @@ class DressRigWindow(object):
             raise RigError('Kleidteile auswaehlen.')
         current = self.cmds.textScrollList(self.c['parts'], query=True, allItems=True) or []
         for node in picked:
-            transform = scene.mesh_nodes(node)[0]
+            transform, shape = scene.mesh_nodes(node)
+            if scene.has_skin(shape):
+                raise RigError('%s ist schon geriggt. Bitte das ungeriggte ORIGINAL hinzufuegen.'
+                               % scene.short(transform))
             if transform not in current:
                 self.cmds.textScrollList(self.c['parts'], edit=True, append=transform)
                 current.append(transform)

@@ -568,6 +568,8 @@ def run(body_name, base_name, part_names, params, progress=None):
                len(rotated), ', '.join('%s %.1f Grad' % (n, a) for a, n in rotated[:3]) or '-')
     report.add('  (Das ist erlaubt: gewichtet wird in der aktuellen Pose, gebunden in der Body-Bindepose.)')
     base_t, base_s = scene.mesh_nodes(base_name)
+    if scene.has_skin(base_s):
+        raise RigError('Basis %s ist schon geriggt. Bitte die ungeriggte Basis laden.' % scene.short(base_t))
     base = scene.MeshData(base_t, base_s)
     tiny = collections.Counter(base.shell_of)
     tiny_shells = sum(1 for n in tiny.values() if n <= 4)
@@ -580,6 +582,18 @@ def run(body_name, base_name, part_names, params, progress=None):
                scene.short(base_t), len(base.points), base.shell_count, sum(1 for f in factors if f > 0),
                info.get('sleeve_vertices', 0), info.get('coupled_vertices', 0), params['layer_distance'],
                info.get('contact_vertices', 0), params['leg_contact'])
+    tests = ['Schritte/Spreizen x%.2f' % params['sweep_scale']]
+    if params['sweep_sit']:
+        tests.append('Sitzen')
+    if params['sweep_side']:
+        tests.append('Bein seitlich 40 Grad')
+    report.add('Beinpruefung: %s; Am Bein anliegend folgt %.2f', ', '.join(tests), params['contact_strength'])
+    skirt_count = sum(1 for f in factors if f > 0)
+    if skirt_count and info.get('contact_vertices', 0) > 0.5 * skirt_count:
+        report.warn('%d %% des Rocks gilt als am Bein anliegend und folgt den Beinen. Die Mitte-Regler '
+                    '(Mitte am Becken, Mitte weich, Vorne/Hinten) wirken dort kaum. Zum Vergleich '
+                    '"Am Bein anliegend bis" kleiner stellen oder 0 (aus).',
+                    round(100.0 * info['contact_vertices'] / skirt_count))
     skin_mats = {}
     created, outputs = [], []
     cmds.undoInfo(openChunk=True, chunkName='mcdDressRig')
@@ -589,6 +603,10 @@ def run(body_name, base_name, part_names, params, progress=None):
             t, s = scene.mesh_nodes(name)
             if t == body.transform:
                 raise RigError('Der Body kann nicht als Kleidteil verwendet werden.')
+            if scene.has_skin(s):
+                raise RigError('%s ist schon geriggt (Ergebnis eines frueheren Laufs?). Bitte das '
+                               'ungeriggte ORIGINAL als Kleidteil verwenden: Liste leeren, Original '
+                               'auswaehlen, Auswahl hinzufuegen.' % scene.short(t))
             parts.append(scene.MeshData(t, s))
         total = len(parts)
         for number, part in enumerate(parts):
