@@ -375,6 +375,93 @@ def smooth_within_sets(rows, adjacency, factors, passes, strength=0.5):
     return rows
 
 
+def detect_slit_strips(points, triangles, shell_of, frame, skirt_top, skip=None, distance=None):
+    """Find slits and narrow fabric strips along them (facings, wrap edges).
+
+    points/triangles/shell_of: the base mesh; frame: skirt frame; skirt_top:
+    height (frame coords) where the skirt starts; skip: per-vertex flag for
+    vertices to ignore (sleeves). Pure geometry, no weights.
+
+    Slit = open (boundary) edge of a large skirt shell that runs well above
+    that shell's hem. Strip = a separate, long and narrow shell in the skirt
+    lying next to such a slit. Returns {'slits': [...], 'strips': [...]}.
+    """
+    count = len(points)
+    skip = skip or [False] * count
+    leg = frame['leg_length']
+    distance = distance if distance is not None else 0.12 * leg
+    coords = [skirt_frame_coords(p, frame) for p in points]
+    shells = {}
+    for v, s in enumerate(shell_of):
+        shells.setdefault(s, []).append(v)
+    in_skirt = [coords[v][1] < skirt_top and not skip[v] for v in range(count)]
+    skirt_size = {s: sum(1 for v in vs if in_skirt[v]) for s, vs in shells.items()}
+    largest = max(skirt_size.values()) if skirt_size else 0
+    big = set(s for s, n in skirt_size.items() if largest and n >= 0.1 * largest)
+    edge_use = {}
+    for tri in triangles:
+        for a, b in ((tri[0], tri[1]), (tri[1], tri[2]), (tri[2], tri[0])):
+            key = (a, b) if a < b else (b, a)
+            edge_use[key] = edge_use.get(key, 0) + 1
+    # Only open edges that run mostly up/down: a slit is vertical, while a
+    # hem or a separate skirt's waistband is horizontal.
+    border = set()
+    for (a, b), n in edge_use.items():
+        if n != 1:
+            continue
+        d = sub(points[a], points[b])
+        rise = abs(dot(d, frame['up']))
+        if rise >= 0.7 * math.sqrt(dot(d, d)):
+            border.update((a, b))
+    hem = {s: min(coords[v][1] for v in vs) for s, vs in shells.items()}
+    slit_vertices = {1: [], -1: []}
+    for v in border:
+        s = shell_of[v]
+        if s in big and in_skirt[v] and coords[v][1] > hem[s] + 0.3 * leg:
+            slit_vertices[1 if coords[v][0] >= 0.0 else -1].append(v)
+    slits = [{'side': side, 'vertices': vs, 'top': max(coords[v][1] for v in vs)}
+             for side, vs in slit_vertices.items() if len(vs) >= 10]
+    strips = []
+    for s, vs in shells.items():
+        if s in big or len(vs) < 20 or not slits:
+            continue
+        if sum(1 for v in vs if in_skirt[v]) < 0.7 * len(vs):
+            continue
+        heights = [coords[v][1] for v in vs]
+        low, high = min(heights), max(heights)
+        length = high - low
+        if length < 0.5 * leg:
+            continue
+        # width: median horizontal size of 8 height bands
+        bands = [[] for _ in range(8)]
+        for v in vs:
+            bands[min(7, int(8 * (coords[v][1] - low) / length))].append(v)
+        widths = []
+        for band in bands:
+            if len(band) < 2:
+                continue
+            lat = [coords[v][0] for v in band]
+            fwd = [coords[v][2] for v in band]
+            widths.append(math.hypot(max(lat) - min(lat), max(fwd) - min(fwd)))
+        if not widths:
+            continue
+        width = sorted(widths)[len(widths) // 2]
+        if width > 0.3 * length:
+            continue
+        # The strip belongs to the leg on its own side (a wrap edge may cross
+        # the centre near the waist, so the nearest open edge is not enough).
+        side = 1 if sum(coords[v][0] for v in vs) >= 0.0 else -1
+        gap = None
+        for slit in slits:
+            d = min(math.sqrt(dot(sub(points[v], points[w]), sub(points[v], points[w])))
+                    for v in vs[::max(1, len(vs) // 60)] for w in slit['vertices'][::max(1, len(slit['vertices']) // 60)])
+            gap = d if gap is None else min(gap, d)
+        if gap is not None and gap <= distance and any(sl['side'] == side for sl in slits):
+            strips.append({'shell': s, 'side': side, 'vertices': vs, 'length': length,
+                           'width': width, 'gap': gap})
+    return {'slits': slits, 'strips': strips}
+
+
 def average_row(rows, indices, maximum, fallback):
     """One common row for a selection: the mean of its rows, capped to `maximum`."""
     total = {}

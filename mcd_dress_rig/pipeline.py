@@ -51,8 +51,8 @@ DEFAULTS = dict(core.SKIRT_DEFAULTS, skirt=True, start_offset=None, transition=N
                 smooth_passes=3, maximum=4, hide_original=False, keep_all_influences=False,
                 skirt_on_cv=True, layer_distance=None, leg_contact=None, contact_strength=0.9,
                 sweep_sit=True, sweep_side=False, contact_smooth=8, sweep_scale=0.5, widen=0.0, widen_back=0.0,
-                upper_smooth=0, strip=None, strip_hold=1.0, strip_rings=3, strip_mode='average',
-                strip_leg=0.8)
+                upper_smooth=0, strip=None, strip_hold=1.0, strip_rings=3, strip_mode='leg',
+                strip_leg=0.8, auto_strips=True)
 SUFFIX = '_mcdRig'
 TOLERANCE_SUM = 1e-4
 TOLERANCE_SHAPE = 1e-3   # scene units (cm)
@@ -238,7 +238,78 @@ def weight_base(base, body, info, params, progress):
                                      [1.0 if f > 0 or c > 0 or u > 0 else 0.0
                                       for f, c, u in zip(factors, coupled, upper)],
                                      max(params['smooth_passes'], params.get('upper_smooth') or 0))
+    if params['skirt'] and params.get('auto_strips', True):
+        skip = [d[2] >= 0.5 for d in data]
+        found = core.detect_slit_strips(base.points, base.triangles, base.shell_of, frame,
+                                        params['start_offset'], skip)
+        info['slits'], info['strips'] = found['slits'], found['strips']
+        for strip in found['strips']:
+            target, _ = strip_target(result, strip['vertices'], strip['side'], info, params)
+            result, _ = core.hold_selection(result, base.adjacency, strip['vertices'], target,
+                                            params['strip_hold'], 0, params['maximum'], pelvis_m)
     return result, factors
+
+
+def describe_detection(info, params):
+    if not params['skirt'] or not params.get('auto_strips', True):
+        return 'Schlitz-Erkennung: aus'
+    side = {1: 'links', -1: 'rechts'}
+    slits = ', '.join('%s (offene Kante bis %.1f cm %s Becken)' % (side[s['side']], abs(s['top']),
+                                                                 'ueber' if s['top'] >= 0 else 'unter')
+                      for s in info.get('slits', [])) or 'keiner'
+    lines = ['Schlitz-Erkennung: Schlitz %s' % slits]
+    for number, strip in enumerate(info.get('strips', []), 1):
+        lines.append('  Streifen %d: %d Vertices, %.0f x %.0f cm, %s -> bewegt sich als ein Stueck (%s)'
+                     % (number, len(strip['vertices']), strip['length'], strip['width'], side[strip['side']],
+                        {'leg': 'mit dem Bein', 'pelvis': 'am Becken'}.get(params.get('strip_mode'),
+                                                                            'Mittelwert')))
+    if not info.get('strips'):
+        lines.append('  keine schmalen Streifen an einem Schlitz gefunden')
+    return '\n'.join(lines)
+
+
+def analyze(body_name, base_name, params):
+    """Only the detection, for the 'Kleid analysieren' button. Returns (text, base, strips)."""
+    body, info = body_setup(body_name)
+    if info['problems']:
+        raise RigError('Body nicht verwendbar:\n  ' + '\n  '.join(info['problems']))
+    params = dict(DEFAULTS, **params)
+    frame = info['frame']
+    if params['start_offset'] is None:
+        params['start_offset'] = 0.15 * frame['leg_length']
+    base_t, base_s = scene.mesh_nodes(base_name)
+    base = scene.MeshData(base_t, base_s)
+    finder = _finder(body, info['allowed'])
+    skip = []
+    for point in base.points:
+        tri, bary, _ = finder.query(point)
+        row = _body_row(body, tri, bary, info['allowed'])
+        total = sum(row.values()) or 1.0
+        skip.append(sum(w for i, w in row.items() if info['arm'][i]) / total >= 0.5)
+    found = core.detect_slit_strips(base.points, base.triangles, base.shell_of, frame,
+                                    params['start_offset'], skip)
+    info['slits'], info['strips'] = found['slits'], found['strips']
+    params['auto_strips'] = True
+    return describe_detection(info, params), base, found['strips']
+
+
+def strip_target(rows, chosen, side, info, params):
+    """Common row for a strip according to 'Streifen folgt' (side: +1 left, -1 right)."""
+    m_index, cv_index = info['roles']['pelvis']
+    on_cv = params['skirt_on_cv']
+    pelvis = cv_index if (on_cv and cv_index is not None) else m_index
+    mode = params.get('strip_mode', 'leg')
+    if mode == 'pelvis':
+        return {pelvis: 1.0}, 'am Becken'
+    if mode == 'leg':
+        name = 'thigh_l' if side >= 0 else 'thigh_r'
+        t_m, t_cv = info['roles'][name]
+        thigh = t_cv if (on_cv and t_cv is not None) else t_m
+        share = core.clamp(params.get('strip_leg', 0.8))
+        return (core.normalize_row({thigh: share, pelvis: 1.0 - share}, params['maximum'], m_index),
+                'mit Bein %s %.0f %%' % ('links' if side >= 0 else 'rechts', 100 * share))
+    # Mean of the strip's own weights: it still follows the leg, but as one piece.
+    return core.average_row(rows, chosen, params['maximum'], m_index), 'als Ganzes'
 
 
 def _smooth_contact(base, raw, passes):
@@ -434,27 +505,14 @@ def hold_strip(part, rows, info, params, report):
     groups = (params.get('strip') or {}).get(part.transform)
     if not groups or params.get('strip_hold', 0.0) <= 0.0:
         return rows
-    m_index, cv_index = info['roles']['pelvis']
-    pelvis = cv_index if (params['skirt_on_cv'] and cv_index is not None) else m_index
+    m_index = info['roles']['pelvis'][0]
     original = rows
     for number, chosen in enumerate(groups, 1):
         chosen = [v for v in chosen if 0 <= v < len(rows)]
         if not chosen:
             continue
-        if params.get('strip_mode') == 'pelvis':
-            target, mode = {pelvis: 1.0}, 'am Becken'
-        elif params.get('strip_mode') == 'leg':
-            # Thigh of the side the strip lies on; the whole strip turns with it.
-            lateral = sum(core.skirt_frame_coords(part.points[v], info['frame'])[0] for v in chosen)
-            side = 'thigh_l' if lateral >= 0.0 else 'thigh_r'
-            t_m, t_cv = info['roles'][side]
-            thigh = t_cv if (params['skirt_on_cv'] and t_cv is not None) else t_m
-            share = core.clamp(params.get('strip_leg', 0.8))
-            target = core.normalize_row({thigh: share, pelvis: 1.0 - share}, params['maximum'], m_index)
-            mode = 'mit Bein %s %.0f %%' % ('links' if side == 'thigh_l' else 'rechts', 100 * share)
-        else:
-            # Mean of the strip's own weights: it still follows the leg, but as one piece.
-            target, mode = core.average_row(original, chosen, params['maximum'], m_index), 'als Ganzes'
+        lateral = sum(core.skirt_frame_coords(part.points[v], info['frame'])[0] for v in chosen)
+        target, mode = strip_target(original, chosen, 1 if lateral >= 0.0 else -1, info, params)
         rows, changed = core.hold_selection(rows, part.adjacency, chosen, target, params['strip_hold'],
                                             params.get('strip_rings', 3), params['maximum'], m_index)
         report.add('  Streifen %d gerade (%s): %d Vertices gewaehlt, %d angepasst (Staerke %.2f, %d Ringe)',
@@ -636,6 +694,7 @@ def run(body_name, base_name, part_names, params, progress=None):
                scene.short(base_t), len(base.points), base.shell_count, sum(1 for f in factors if f > 0),
                info.get('sleeve_vertices', 0), info.get('coupled_vertices', 0), params['layer_distance'],
                info.get('contact_vertices', 0), params['leg_contact'])
+    report.add(describe_detection(info, params))
     report.add('Glaetten: Rock %d, Oberteil %d Durchlaeufe', params['smooth_passes'], params['upper_smooth'])
     tests = ['Schritte/Spreizen x%.2f' % params['sweep_scale']]
     if params['sweep_sit']:

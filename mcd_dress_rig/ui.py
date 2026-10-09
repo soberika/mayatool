@@ -82,10 +82,13 @@ class DressRigWindow(object):
         cmds.button(label='Streifen leeren', command=lambda *_: self._safe(self._clear_strip))
         cmds.setParent('..')
         self.c['strip_info'] = cmds.text(label='Kein Streifen gemerkt.', align='left')
+        self.c['auto_strips'] = cmds.checkBox(label='Schlitz-Streifen automatisch erkennen (gerade halten)',
+                                              value=True)
         self.c['strip_mode'] = cmds.optionMenu(label='Streifen folgt')
         cmds.menuItem(label='als Ganzes (Mittelwert, z. B. Schlitzkante)')
         cmds.menuItem(label='dem Becken (ganz ruhig, z. B. hintere Mitte)')
         cmds.menuItem(label='dem Bein (dreht gerade mit dem Oberschenkel)')
+        cmds.optionMenu(self.c['strip_mode'], edit=True, select=3)
         self.c['strip_leg'] = cmds.floatSliderGrp(label='Streifen: Anteil Bein', field=True, minValue=0.0,
                                                   maxValue=1.0, value=0.8, precision=2,
                                                   columnWidth3=(150, 55, 260))
@@ -107,6 +110,8 @@ class DressRigWindow(object):
         self.c['hide'] = cmds.checkBox(label='Original nach Erfolg ausblenden', value=False)
         cmds.setParent('..')
         cmds.setParent('..')
+        cmds.button(label='Kleid analysieren (Schlitz / Streifen anzeigen)',
+                    command=lambda *_: self._safe(self._analyze))
         cmds.button(label='BASE RIG ERSTELLEN', height=40, backgroundColor=(0.22, 0.43, 0.36),
                     command=lambda *_: self._safe(self._run))
         cmds.text(label='Bericht:', align='left')
@@ -160,6 +165,19 @@ class DressRigWindow(object):
     def _load_base(self):
         transform = self._selected_mesh()
         self.cmds.textFieldButtonGrp(self.c['base'], edit=True, text=transform)
+
+    def _analyze(self):
+        cmds = self.cmds
+        body = cmds.textFieldButtonGrp(self.c['body'], query=True, text=True)
+        base = cmds.textFieldButtonGrp(self.c['base'], query=True, text=True)
+        if not body or not base:
+            raise RigError('Erst Body und Basis laden.')
+        text, mesh, strips = pipeline.analyze(body, base, self._params())
+        ids = sorted(set(v for strip in strips for v in strip['vertices']))
+        if ids:
+            cmds.select(['%s.vtx[%d]' % (mesh.shape, v) for v in ids], replace=True)
+            text += '\n\nDie erkannten Streifen sind an der Basis ausgewaehlt.'
+        self._say(text)
 
     def _store_strip(self):
         cmds = self.cmds
@@ -237,6 +255,7 @@ class DressRigWindow(object):
         params['strip_mode'] = {2: 'pelvis', 3: 'leg'}.get(
             cmds.optionMenu(self.c['strip_mode'], query=True, select=True), 'average')
         params['strip_leg'] = cmds.floatSliderGrp(self.c['strip_leg'], query=True, value=True)
+        params['auto_strips'] = cmds.checkBox(self.c['auto_strips'], query=True, value=True)
         params['strip_rings'] = cmds.intSliderGrp(self.c['strip_rings'], query=True, value=True)
         params['upper_smooth'] = cmds.intSliderGrp(self.c['upper_smooth'], query=True, value=True)
         params['widen'] = cmds.floatFieldGrp(self.c['widen'], query=True, value1=True)
