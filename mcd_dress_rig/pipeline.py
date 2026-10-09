@@ -36,6 +36,15 @@ PROFILES = {
                                          contact_strength=0.7, sweep_scale=1.0, skirt=True,
                                          leg_contact=2.0, layer_distance=6.0, widen=0.0, widen_back=1.0,
                                          smooth_passes=3, upper_smooth=5, sweep_sit=True, sweep_side=True),
+    # The user's inworld-tested settings with 0.5.4 (screenshot), all later
+    # features off: computes exactly like 0.5.4.
+    'Erste Version (0.5.4, inworld getestet)': dict(center_width=3.0, center_hold=0.55, leg_follow=0.75,
+                                                    knee_follow=0.6, outer_follow=0.9, contact_strength=0.9,
+                                                    sweep_scale=0.5, front_follow=0.25, back_hold=0.15,
+                                                    skirt=True, leg_contact=2.95, layer_distance=3.93,
+                                                    smooth_passes=7, sweep_sit=True, sweep_side=False,
+                                                    widen=0.0, widen_back=0.0, upper_smooth=0,
+                                                    auto_strips=False, edge_band=0.0),
     'Kleid mit Schlitz': dict(center_width=1.5, center_hold=0.55, leg_follow=0.75, knee_follow=0.6,
                               outer_follow=0.9, front_follow=0.25, back_hold=0.15, contact_strength=0.9,
                               skirt=True),

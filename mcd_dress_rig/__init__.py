@@ -4,7 +4,7 @@
 Start: drag mcd_dress_rig_start.py into the Maya viewport, or
     import mcd_dress_rig; mcd_dress_rig.show()
 """
-VERSION = '0.6.1-M1'
+VERSION = '0.6.2-M1'
 
 
 def show():
