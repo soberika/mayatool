@@ -232,6 +232,29 @@ def merge(*parts):
     return out
 
 
+# Approximate sagittal gait curve (hip flexion, knee flexion in degrees) over
+# one cycle of the LEFT leg, from typical normal-walking data. The right leg
+# runs half a cycle later. Used to train/test the swing phase, where the calf
+# pushes back into a long skirt.
+GAIT = ((0, 25, 5), (15, 20, 15), (30, 5, 5), (50, -10, 10), (60, -5, 38),
+        (70, 12, 60), (85, 25, 35), (100, 25, 5))
+
+
+def gait_angles(phase):
+    phase = phase % 100.0
+    for (p0, h0, k0), (p1, h1, k1) in zip(GAIT, GAIT[1:]):
+        if p0 <= phase <= p1:
+            t = (phase - p0) / float(p1 - p0)
+            return h0 + t * (h1 - h0), k0 + t * (k1 - k0)
+    return GAIT[0][1], GAIT[0][2]
+
+
+def gait_pose(phase, stride=1.0):
+    hl, kl = gait_angles(phase)
+    hr, kr = gait_angles(phase + 50.0)
+    return merge(leg('L', hl * stride, kl * stride), leg('R', hr * stride, kr * stride))
+
+
 def standard_poses():
     """(name, set, rotations). 'train' poses fit the weights, 'test' poses only judge."""
     return [
@@ -240,6 +263,15 @@ def standard_poses():
         ('Beine gekreuzt stehend', 'train', merge(leg('L', 10, 5, 15), leg('R', 0, 0, 5))),
         ('Sitzen', 'train', merge(leg('L', 85, 85), leg('R', 85, 85))),
         ('Bein ueber Bein leicht', 'train', merge(leg('L', 90, 80, 12), leg('R', 85, 85))),
+        ('Gehen 0%', 'train', gait_pose(0)),
+        ('Gehen 30%', 'train', gait_pose(30)),
+        ('Gehen 60%', 'train', gait_pose(60)),
+        ('Gehen 70%', 'train', gait_pose(70)),
+        ('Gehen 85%', 'train', gait_pose(85)),
+        ('Gehen 15%', 'test', gait_pose(15)),
+        ('Gehen 65% gross', 'test', gait_pose(65, 1.25)),
+        ('Gehen 75% gross', 'test', gait_pose(75, 1.25)),
+        ('Gehen 50% gross', 'test', gait_pose(50, 1.25)),
         ('Schritt L 40', 'test', merge(leg('L', 40, 20), leg('R', -25, 25))),
         ('Schritt R 40', 'test', merge(leg('R', 40, 20), leg('L', -25, 25))),
         ('Ausfallschritt L', 'test', merge(leg('L', 55, 50), leg('R', -30, 10))),
