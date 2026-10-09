@@ -249,10 +249,13 @@ def gait_angles(phase):
     return GAIT[0][1], GAIT[0][2]
 
 
-def gait_pose(phase, stride=1.0):
+def gait_pose(phase, stride=1.0, cross=0.0, twist=0.0):
+    """Gait pose. cross: adduction in degrees (catwalk walks put each foot in
+    front of the other, across the centre line); twist: inward thigh rotation."""
     hl, kl = gait_angles(phase)
     hr, kr = gait_angles(phase + 50.0)
-    return merge(leg('L', hl * stride, kl * stride), leg('R', hr * stride, kr * stride))
+    return merge(leg('L', hl * stride, kl * stride, cross, twist),
+                 leg('R', hr * stride, kr * stride, cross, twist))
 
 
 def standard_poses():
@@ -710,3 +713,37 @@ def harmonize_offsets(rig, dress, weights, offsets, radius=1.2, iterations=12):
     blend = np.einsum('vj,jab->vab', weights,
                       np.einsum('jab,jbc->jac', dress.bind, rig.rest[dress.joint]))
     return np.einsum('va,vab->vb', disp, np.linalg.inv(blend[:, :3, :3]))
+
+
+def pelvis_carry(rig, dress, weights, start_height, max_share, pelvis_name='mPelvis',
+                 smooth=20):
+    """Let the lower skirt be carried increasingly by the pelvis instead of
+    the legs, as long skirts in reality hang from the hips.
+
+    share(y) rises smoothly from 0 at 'start_height' to 'max_share' at the hem,
+    as a function of HEIGHT only (smoothed over edges), so neighbours always get
+    almost the same blend and nothing tears from per-vertex noise:
+        w_new = (1 - share) * w + share * e_pelvis
+    If a row already has 4 influences and no pelvis, its smallest influence is
+    merged into the pelvis (not dropped and renormalised), which changes the
+    deformation only by that small weight."""
+    up = rig.axes['up']
+    rest = dress.deform(rig.rest, weights)
+    y = rest @ up
+    y_low = y.min()
+    t = np.clip((start_height - y) / max(start_height - y_low, 1e-6), 0.0, 1.0)
+    share = max_share * t * t * (3 - 2 * t)
+    share = smooth_field(share, dress.edges, iterations=smooth)
+    p = dress.mesh.influences.index(pelvis_name)
+    out = weights.copy()
+    for v in range(len(out)):
+        row = out[v]
+        used = np.nonzero(row > 1e-6)[0]
+        if p not in used and len(used) >= 4:
+            k = used[np.argmin(row[used])]
+            row[p] += row[k]
+            row[k] = 0.0
+        row *= 1.0 - share[v]
+        row[p] += share[v]
+        out[v] = row / row.sum()
+    return out, share

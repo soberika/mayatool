@@ -144,3 +144,29 @@ Die Formänderung wurde nur entlang von Mesh-Kanten geglättet, also pro Teil. �
 **Lehre für das Tool:** Jede Formänderung muss über getrennte Mesh-Teile hinweg geglättet werden. Mesh-Kanten allein reichen nicht.
 
 **Noch offen:** Bei gekreuzten Beinen im Stand drückt der Oberschenkel durch das vordere Stoffteil am Schlitz. Das ist ein eigener Bereich: vorn, oberhalb des Knies.
+
+## SL-Test A-Linie v2: beim Gehen weiter Oberschenkel und Wade. Laufsteg-Gänge
+
+Die AO der Kreatorin geht mit **gekreuzten Schritten**, Fuß vor Fuß über die Mittellinie, und mit großer Schrittweite. Der bisherige Testgang hatte beides nicht.
+
+**Neu:** `gait_pose(..., cross, twist)` für Laufsteg-Gänge. Trainiert wird auf Schrittweiten ×1,0 / 1,3 / 1,5 und Kreuzung 0 / 8 / 14°. Getestet wird auf nie gesehenen Kombinationen (×1,4/10°, ×1,6/12°, ×1,2/16°).
+
+| Variante | Test: Wade | Test: Oberschenkel | sichtbar gesamt (Außenstoff + Schlitz, unter Hüfte) |
+|---|---|---|---|
+| 0.5.3 | 7325 | 12574 | 12175 |
+| A-Linie v2 | 5798 | 11468 | – |
+| **Laufsteg v3** | **4991** | **8825** | **7992 (−34 %)** |
+
+**Was nicht hilft** (gemessen):
+- **Rock vom Becken tragen lassen** (`pelvis_carry`, 30–70 %), auch zusammen mit einem weiteren Saum (62 cm): kein Gewinn, aber mehr Dehnung.
+- **Unterlage wie den Außenstoff gewichten:** kein Gewinn beim sichtbaren Clipping.
+
+**Wo es clippt:**
+- Etwa die Hälfte entfällt auf die innere Unterlage, die man von außen meist nicht sieht.
+- Am Außenstoff sitzt das meiste **hinten an den Waden** und **zwischen den Beinen**.
+
+**Bewertung:** Ein enger, einteiliger langer Rock auf festen Bones kann sich kreuzende Laufsteg-Schritte nicht aufnehmen. Weitere Feinkorrekturen der Form bringen nur noch Prozente.
+
+**Wirksame nächste Optionen:**
+- ein **Gehschlitz hinten** (klassische Schneiderlösung bei engen langen Röcken; die Topologie muss in Maya geändert werden);
+- die **echte AO-Gehanimation** als Trainingsdaten statt erfundener Gänge.
