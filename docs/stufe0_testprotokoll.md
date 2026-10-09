@@ -132,19 +132,26 @@ Falls verfügbar: einen Bento-Schwanz mit eigener Animation tragen und `mcd_test
 
 ---
 
-## Ergebnistabelle (zum Ausfüllen)
+## Ergebnisse (Oktober 2026, Rückmeldung der Kreatorin)
 
-| Test | Viewer + Version | Ergebnis | Notiz / Video |
-|---|---|---|---|
-| T1 Upload | | | |
-| T2 Positionen | | | |
-| T3 Achsen | | | |
-| T4 Rückkehr | | | |
-| T5 AO / Hände | | | |
-| T6 Zustände (rate 0.2 / 0.1) | | | |
-| T7 Zweiter Viewer | | | |
-| T8 Shape | | | |
-| T9 Tail (optional) | | | |
+| Test | Ergebnis |
+|---|---|
+| T1 Upload | Teststäbe (`mcd_test_baender.dae`) und `.anim`-Dateien wurden angenommen. Das Skript lief nach einem Kopierfehler beim Einfügen. |
+| T2 Positionen | **Funktioniert.** Im Sitzen wandern die Stäbe nach vorn, also werden Positionskeys auf HindLimb-Bones abgespielt. |
+| T3 Achsen | Kippen sichtbar. Die genaue Richtung (unteres Ende nach hinten?) ist noch nicht eindeutig bestätigt. Prüfen wir beim ersten Bake aus Maya. |
+| T4 Rückkehr | **Funktioniert.** Nach dem Aufstehen kehren die Stäbe zurück, nichts bleibt hängen. |
+| T5 AO / Hände | **Unverändert.** |
+| T6 Zustände | **Funktioniert.** Reagiert „ziemlich schnell“, ohne Zahl gemessen. |
+| T7 Zweiter Viewer | nicht getestet |
+| T8 Shape | nicht getestet |
+| T9 Tail | nicht getestet |
+
+**Nebenbefund:** Wenn das Skript aktiv wird, zeigt der Viewer einen Kreis um den Avatar. Vermutlich ist das die Anzeige für Skriptaktivität. In der Produktversion bleibt die Chat-Ausgabe aus (`/7 debug`).
+
+**Folge laut Entscheidungstabelle:** Die volle Stoffebene ist machbar, mit Rotation **und** Verschiebung pro Zustand und ohne dauerhaft laufende Ruheanimation.
+Noch offen und nachzuholen:
+- T7, ob ein zweiter Beobachter dasselbe sieht;
+- T8, Verhalten bei extremen Shapes.
 
 ---
 

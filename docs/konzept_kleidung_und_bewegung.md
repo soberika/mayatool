@@ -56,7 +56,7 @@ Animationen oder eine Animation und ein Skriptbefehl sind auf fremden Viewern
 **nicht bildgenau synchron**. Was zeitlich zusammenpassen muss, gehört **in
 dieselbe Animationsdatei**.
 
-> Noch offen: Dass Positionskeys auf Nicht-Pelvis-Bones aus einer direkt
+> Inzwischen in SL bestätigt (Stufe 0): Positionskeys auf HindLimb-Bones werden abgespielt. Ursprünglich offen war: Dass Positionskeys auf Nicht-Pelvis-Bones aus einer direkt
 > hochgeladenen `.anim` abgespielt werden, ergibt sich aus dem Code. Für unseren
 > Fall testen wir es trotzdem als ersten Schritt im Prototyp (Abschnitt 4, Stufe 0),
 > bevor wir darauf aufbauen.
@@ -449,7 +449,7 @@ Gleiches Kleid, gleicher Body, **identische Posen und Clips**. Verglichen werden
 
 ## 4. Nächste Schritte
 
-1. **Stufe 0 (umgesetzt, wartet auf den Test in SL):**
+1. **Stufe 0 (umgesetzt und in SL getestet: Positionen, Rückkehr, Zustandswechsel und AO-Neutralität funktionieren, Details in `docs/stufe0_testprotokoll.md`):**
    - `mcd_sl_anim.py`: `.anim`-Export nur für Stoff-Bones;
    - `lsl/mcd_cloth_state.lsl`: Zustandsskript mit Zeitprotokoll;
    - `mcd_fit_metrics.py`: Messgerüst;
