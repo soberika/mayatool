@@ -449,7 +449,13 @@ Gleiches Kleid, gleicher Body, **identische Posen und Clips**. Verglichen werden
 
 ## 4. Nächste Schritte
 
-1. Stufe 0 umsetzen: Testanimation nur auf Cloth-Bones exportieren, Uploadtest mit laufender fremder AO, Skripttest für die Zustandserkennung, Messgerüst in Maya.
+1. **Stufe 0 (umgesetzt, wartet auf den Test in SL):**
+   - `mcd_sl_anim.py`: `.anim`-Export nur für Stoff-Bones;
+   - `lsl/mcd_cloth_state.lsl`: Zustandsskript mit Zeitprotokoll;
+   - `mcd_fit_metrics.py`: Messgerüst;
+   - `testdaten/stufe0/`: fertige Testanimationen.
+
+   Ablauf und Ergebnistabelle: `docs/stufe0_testprotokoll.md`.
 2. Danach Stufe 1 (K1) als Erweiterung von 0.4. Der vorhandene Gewichtscode bleibt Startwert und Vergleichsbasis.
 
 ## Quellen
