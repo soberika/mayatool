@@ -7,13 +7,13 @@ Noch kein Code. Stand: Oktober 2026.
 > ihre Gewichtsverteilung und ihre Bewegungen als ein gemeinsames Designproblem
 > behandeln?**
 
-Kurze Antwort vorweg: Kleidung, deren auffälligstes Verhalten nicht trotz,
-sondern wegen der Bewegung entsteht. Ein Schlitz, der sich in einer bestimmten
-Gangphase öffnet und sich danach wieder schließt. Eine Säulensilhouette, die beim
-Gehen erhalten bleibt, weil Gang und Rock aufeinander abgestimmt sind. Straps,
-die einen Moment lang „arbeiten“. Second Life kann so etwas zur Laufzeit nicht
-simulieren. Wir können es aber **vorab gemeinsam lösen und in Gewichte, Geometrie
-und Animationsspuren einbacken**, die SL abspielen kann.
+Kurze Antwort vorweg: Kleidung, die je nach Situation eine **andere, gewollte
+Form** annimmt, ohne der Trägerin ihre eigene AO wegzunehmen. Im Stehen ist der
+Schlitz geschlossen und die Linie ruhig. Beim Gehen öffnet er sich und gibt dem
+Bein Raum. Beim Sitzen gleitet der Rock zur Seite, statt im Oberschenkel zu
+verschwinden. Second Life kann Stoff zur Laufzeit nicht simulieren. Wir können
+diese Formen aber **vorab gemeinsam mit den Gewichten lösen** und als
+Animationsspuren auf ungenutzten Bento-Bones ausliefern, die **neben** jeder AO laufen.
 
 ---
 
@@ -141,7 +141,7 @@ Die Cloth-Bones sind **gegen die Standardpositionen des Skeletts gebunden**, ohn
 
 ---
 
-### K3 – Choreografierter Gang: Kleid und Animation gemeinsam optimieren
+### K3 – Choreografierter Gang: Kleid und Animation gemeinsam optimieren *(verworfen, siehe Abschnitt 2)*
 
 **Neue Möglichkeit.** Wir passen nicht das Kleid an einen beliebigen Gang an, sondern lösen **Gang, Gewichte und Saumspuren gemeinsam**. Das Kleid bekommt eine *Signature Walk*, in der der Schlitz gezielt arbeitet: Er öffnet sich kurz vor dem Fersenaufsatz des vorderen Beins und schließt sich in der Standphase. Gleichzeitig bleibt die Säulensilhouette in Front- und Seitenansicht erhalten.
 
@@ -277,70 +277,143 @@ Nachgefragt wird also das Schnittmuster, nicht die Gewichtung.
 
 ## 2. Auswahl
 
+**Feste Vorgabe nach Rücksprache:** Die AO der Trägerin bleibt unangetastet. Das
+Kleid ersetzt keinen Gang, keine Stand- und keine Sitzanimation. Damit fällt
+**K3 (choreografierter Gang) als Kern weg**: Eine eigene Walk würde im Alltag
+gegen die AO verlieren oder sie verdrängen. Beides wollen wir nicht.
+
 | Konzept | Kreatives Potenzial | Machbarkeit (SL + Maya) | Nutzen für eine einzelne Kreatorin |
 |---|---|---|---|
 | K1 Multi-Pose-Fit | mittel | hoch | hoch (ersetzt Nachmalen) |
-| K2 Cloth-Bone-Bake | hoch | mittel–hoch | mittel (Bone-Konflikte) |
-| **K3 Choreografierter Gang** | **sehr hoch** | **mittel** | **hoch, wenn als Paket verkauft** |
+| **K2 Cloth-Bone-Bake** | **hoch** | **mittel–hoch** | **hoch, wenn AO-neutral** |
+| K3 Choreografierter Gang | sehr hoch | mittel | **gering: kollidiert mit der eigenen AO** (verworfen) |
 | K4 Zustände | hoch | mittel | mittel (Skript- und HUD-Aufwand) |
 | K5 Dehnungsentwurf | mittel–hoch | hoch | mittel |
 | K6 Hybrid | mittel | mittel | niedrig–mittel |
 
-**Kern: K3, ergänzt um K2 (die Stoffspuren) und K1 (der Boden für alle Posen,
-die nicht co-designt sind).** K3 ohne K2 hätte keinen Stoff, der eigenständig
-mitarbeitet. K3 ohne K1 sähe außerhalb der Signature Walk schlechter aus als 0.4.
-K4–K6 kommen später: K4 nutzt dieselben Cloth-Bones und dieselbe Übergabelogik
-und lässt sich leicht anschließen.
+**Kern: K2 + K1, umgebaut zu einer zustandsgesteuerten Stoffebene.**
 
-### Die stärkste Idee infrage gestellt
+### Die Kernidee: Kleid mit eigener Stoffebene, die *neben* jeder AO läuft
 
-1. **„Die Trägerin trägt sowieso ihre eigene AO.“** Das ist der härteste Einwand.
-   Eine Signature Walk wird nur gesehen, wenn sie aktiv ist.
-   → *Verbesserung:* **Zwei Modi** liefern.
-   - **Signature-Modus**: volle Kopplung, Körper- und Cloth-Spuren in einer Datei.
-   - **Overlay-Modus**: eine Animation, die **nur Cloth-Bones** keyt und die Fremd-AO unberührt lässt. Ihre Saumbewegung wird bewusst **phasenrobust** optimiert: kleine Amplitude, langsamer als der Schritt, ohne klare Beinkorrelation. So wirkt sie zu jedem Gang plausibel. Das Tool bewertet sie gegen *mehrere* fremde Gänge statt gegen einen.
-2. **„Optimierter Gang = Roboter-Catwalk.“**
-   → Nur 4–8 Stilparameter als Abweichung von einem guten Basisgang. Natürlichkeit ist ein harter Term. Die Kreatorin wählt aus Varianten, statt eine Lösung zu bekommen. Ein Regler für die Ausprägung (0–100 %) blendet zwischen Basis und Optimum.
-3. **„Die Walk deckt nur einen Teil der Zeit ab.“** Stehen, Sitzen, Tanz und Möbelposen sind nicht co-designt.
-   → K1 trainiert genau diese Posen. Die Ruheform der Cloth-Bones ist so entworfen, dass „keine Animation aktiv“ ein guter Zustand ist und nicht ein eingefrorener Zwischenzustand. Optional kommt ein kleines **Pose-Pack** (Stand, Turn, Sit) mit denselben Cloth-Spuren dazu.
-4. **„Bone-Konflikte.“**
-   → Das Bone-Set ist pro Produkt wählbar: HindLimb oder Tail für Röcke, Wings für Oberteile. Das Tool erzeugt eine **Kompatibilitätsnotiz** für die Produktseite („nicht zusammen mit Bento-Tails tragen“). Ein Fallback-Mesh ohne Cloth-Bones (reines K1) liegt jedem Produkt bei.
-5. **„Übergänge.“** Start und Stopp der Walk sind lineare Blends.
-   → Das Tool optimiert die **Ease-In/Out-Längen** und die Ruhe-Kompatibilität des ersten und letzten Frames mit, sodass der Blend ohne Durchdringung verläuft. Ein echtes Nachschwingen beim Anhalten gibt es nicht. Eine AO kann eine kurze „Settle“-Animation starten, die aber nur ungefähr im richtigen Moment beginnt.
+Die Beine bewegt weiterhin die AO der Trägerin. Das Kleid weiß aber in jedem
+Moment, **in welchem Zustand** der Avatar ist: Stehen, Gehen, Rennen, Sitzen,
+Sitzen am Boden, Drehen, Hocken. LSL liefert das über `llGetAnimation()` bzw.
+`llGetAgentInfo()`, unabhängig davon, welche AO-Animation gerade läuft. Für jeden
+Zustand hat das Kleid eine eigene **Stoffpose** auf den Cloth-Bones, optional mit
+einer kleinen, phasenrobusten Loop. Ein Skript im Kleid spielt beim Zustandswechsel
+die passende Overlay-Animation. Diese Animation keyt **ausschließlich Cloth-Bones**
+(HindLimb-, Tail-, ggf. Wing-Bones), die eine normale Humanoid-AO nicht anfasst.
+Damit bleibt die AO vollständig erhalten.
 
-**Verbesserte Kernidee:** *Garment + Motion Pack Solver*. Ein Kleid wird zusammen
-mit einer kleinen Bewegungsfamilie gelöst: Signature Walk, Overlay-Loop,
-Stand/Turn/Sit-Posen und ein Fallback. Gemeinsam gelöst werden
-Ruhegeometrie (begrenzt), Gewichte über Körper- und Cloth-Bones, Cloth-Spuren
-und die Stilparameter des Gangs. Die Designabsichten (Schlitzphase, Silhouettenband,
-Straps) sind **messbare Ziele**, keine Hoffnungen.
+**Was das für das Design öffnet:** Das Kleid darf **pro Zustand eine andere,
+gewollte Form** haben. Diese Formen werden gemeinsam mit **einem** Gewichtssatz
+gelöst:
+
+- **Stehen:** Der Schlitz liegt geschlossen und die Säulenlinie ist sauber. Das ist die Katalogansicht.
+- **Gehen:** Die Panels um den Schlitz rücken ein paar Zentimeter nach außen und vorn. Das Bein bekommt Spielraum und der Schlitz öffnet sich, während die Silhouette von der Seite gerade bleibt.
+- **Sitzen:** Der Rücken des Rocks gleitet unter dem Gesäß nach hinten, der Schlitz klappt zur Seite und fällt über den Oberschenkel. Genau hier clippen enge Kleider heute am stärksten.
+- **Am Boden sitzen / Hocken:** Der Saum legt sich flacher und weiter auf, statt durch die Waden zu gehen.
+- **Rennen:** Der Saum hebt sich leicht und gibt das Knie frei.
+
+Das ist mehr als „bessere Gewichte“: Die Formvarianten sind Teil des Entwurfs.
+Und das Tool optimiert sie **nicht gegen eine einzige Animation**, sondern gegen
+eine **Bibliothek fremder Animationen pro Zustand**, also gegen das, was die
+Kundinnen tatsächlich tragen.
+
+### Mechanismus
+
+**Unbekannte.**
+- Gewichte w über Körper-Bones **und** Cloth-Bones (≤ 4 pro Vertex);
+- begrenzte Ruhe-Offsets d (aus K1);
+- pro Zustand s eine starre Transformation C_s,k je Cloth-Bone k (z. B. 5 Zustände × 8 Bones);
+- optional eine kleine Loop-Amplitude A_s.
+
+**Daten.** Pro Zustand eine Posen- und Clip-Bibliothek L_s aus verschiedenen AOs und Möbeln. Sie wird **in Training und Test geteilt**, die Testanimationen sieht der Solver nie. Dazu Sculpt-Korrekturen der Kreatorin für ausgewählte Frames (wie K1) und Zielsilhouetten pro Zustand.
+
+**Ziel.**
+Σ_s Σ_{p∈L_s} [ Eindringen + Verzerrung + Silhouettenfehler_s + Abstand zu Korrekturen ]
+plus Glättung (Schlitzkanten bleiben getrennt), plus |d| ≤ δ, plus ein **Übergangsterm**.
+Der Übergangsterm misst den linearen Blend zwischen C_s und C_s' (so überblendet
+SL per Ease-In/Out) über repräsentative Wechselposen und bestraft Durchdringung
+während des Wechsels.
+
+**Lösung.** Abwechselnd:
+1. Gewichte pro Vertex (kleines QP);
+2. C_s pro Zustand (wenige starre Transformationen, Gauß-Newton über die Bibliothek);
+3. d linear.
+
+Startwert ist das Ergebnis von 0.4. Eine Robustheitsvariante optimiert zusätzlich den **schlechtesten** Fall pro Zustand statt nur den Mittelwert.
+
+**Optional, die Loop.** Innerhalb eines Zustands eine kleine Saumbewegung (K2-Zerlegung aus einer nCloth-Simulation). Sie ist **phasenrobust**: langsamer als der Schritt, kleine Amplitude, bewertet gegen *alle* Gänge der Bibliothek. Sie darf die Beinbewegung nicht nachahmen wollen, denn die kennt sie nicht.
+
+### Die vier Ebenen
+
+| Ebene | Inhalt |
+|---|---|
+| **Tool (nur Maya)** | Zustands- und Posenbibliothek, Sculpt-Korrekturen, gemeinsamer Solver, Robustheitstest gegen fremde AOs, Übergangsprüfung, Kompatibilitätsbericht |
+| **Export** | Ein rigged Mesh (Körper- + Cloth-Bones, gebunden an die Standardpositionen, **ohne** Joint-Offsets); pro Zustand eine kurze `.anim`, die **nur Cloth-Bones** keyt (Rotation + Position, geloopt, mit optimierten Ease-Zeiten); ein LSL-Skript (Zustandserkennung → Overlay starten/stoppen); ein Fallback-Mesh ohne Cloth-Bones (reines K1) |
+| **Laufzeit (SL)** | LBS; das Skript fragt den Zustand ab und startet die passende Overlay-Animation (Attachments des Trägers bekommen die Animationsberechtigung ohne Rückfrage); SL überblendet per Ease-In/Out; die AO läuft unverändert weiter |
+| **Kompromisse** | siehe unten |
+
+### Die Kernidee infrage gestellt
+
+1. **Zustandserkennung kommt verzögert.** Das Skript pollt, und die Animation startet auf fremden Viewern versetzt. Der Rock reagiert also einen Moment nach dem Körper.
+   → Übergänge lang und weich halten (Ease 0,3–0,6 s). Zustandsformen so lösen, dass auch die **Kombination „alter Stoffzustand + neue Körperpose“** nicht stark clippt. Das Tool prüft genau diese Kreuzkombinationen. Eine sichtbare Verzögerung bleibt, im Idealfall wirkt sie wie Stoffträgheit.
+2. **Sitzen ist nicht gleich Sitzen.** Barhocker, Sofa, Bein über Bein und Paarposen liefern alle „Sitting“.
+   → Die Sitzform wird gegen eine breite Sitzbibliothek robust optimiert. Optional gibt es 2–3 Sitzvarianten, die die Trägerin per Menü wählt („aufrecht“, „Bein über Bein“, „lounge“). Extreme Möbelposen bleiben ein Restrisiko, das wir offen benennen.
+3. **Bone-Konflikte.** Bento-Tails, Flügel, Vierbeiner-Avatare und deren AOs nutzen dieselben Bones.
+   → Bone-Set pro Produkt wählbar (HindLimb oder Tail für Röcke, Wings für Oberteile). Kompatibilitätshinweis auf der Produktseite. Fallback-Mesh ohne Cloth-Bones liegt bei. Das Tool prüft und meldet, wenn zwei eigene Produkte dasselbe Set belegen.
+4. **Ohne laufendes Skript** (Skripte in der Region aus, Overlay gestoppt) gehen die Cloth-Bones in die Standardpose zurück.
+   → Die Ruheform des Kleides ist genau die Stehform. Ohne Overlay sieht man also das geschlossene Kleid in normaler K1-Qualität, nicht eine kaputte Zwischenform.
+5. **Warum nicht einfach mehr Körpergewichte?** Ein fester Gewichtssatz muss Stehen und Sitzen gleichzeitig bedienen und mittelt deshalb. Die Zustandsebene gibt jedem Zustand eigene Freiheitsgrade, ohne die AO anzufassen. Genau das kann reines Skinning nicht.
+
+### Einordnung (was daran bekannt ist)
+
+- Röcke auf Bento-Bones und Skripte, die auf den Avatarzustand reagieren, gibt es in SL einzeln schon.
+- Neu ist die Kombination:
+  - die Zustandsformen werden **gemeinsam mit den Gewichten** gelöst;
+  - der Solver arbeitet **robust gegen fremde AO-Bibliotheken** statt gegen eine Referenzanimation;
+  - die Übergänge werden so geprüft, wie SL sie tatsächlich überblendet;
+  - das Ergebnis ist explizit AO-neutral.
+
+### Was später dazukommen kann
+
+- **K4 (Modi per HUD)** nutzt dieselben Cloth-Bones und dasselbe Skript. Neben den automatischen Zuständen kommen dann bewusst gewählte Modi hinzu („Schlitz offen tragen“).
+- **K5 (Dehnungsentwurf)** nutzt dieselbe Bibliothek, um vor dem Riggen zu sagen, wo ein Schlitz oder eine Falte sitzen sollte.
 
 ---
 
-## 3. Unterschied zu bekannten Verfahren (ehrlich eingeordnet)
+## 3. Prototyp-Plan (klein, in Maya)
 
-- **Gewichte aus Beispielposen** zu optimieren ist in der Forschung bekannt (example-based skinning, SSDR).
-  - *Unser Unterschied:* begrenzte Änderung der Ruheform, Fitted-Mesh-Shape-Varianten und SL-Grenzen (4 Einflüsse, feste Bones) in einem Lauf.
-- **Bento-Bones für Röcke** werden in SL schon kommerziell genutzt.
-  - *Unser Unterschied:* Die Spuren werden aus Simulation oder Absicht **berechnet** und **in dieselbe Datei wie die Körperbewegung** gebacken. Dazu kommt ein phasenrobuster Overlay-Modus.
-- **Gangstile zu optimieren** ist aus Animation und Robotik bekannt.
-  - *Unser Unterschied:* Die Zielfunktion ist eine **Kleidungsabsicht** (Schlitzphase, Silhouette, Strap-Spannung), bewertet am tatsächlich exportierbaren LBS-Ergebnis.
+**Testobjekt.** Bodenlanges Säulenkleid mit hohem Schlitz rechts und zwei Straps, auf einem festen Ziel-Body. Zusätzlich 2 Shape-Varianten, simuliert über skalierte Collision Volumes. Cloth-Bones: `mHindLimb1–4 L/R` (Schlitz- und Vorderpanels); `mTail1–4` als Alternative für den hinteren Saum.
 
----
+**Stufe 0 – Machbarkeit und Messgerüst.**
+- Uploadtest: `.anim` mit Positions- und Rotationskeys **nur** auf `mHindLimb1Left` und `mTail1`, zusammen mit einer laufenden fremden AO.
+  - Bewegen sich die Bones?
+  - Bleibt die AO völlig unberührt?
+  - Blendet Ease-In/Out sauber?
+- Skripttest: Wie schnell wird ein Zustandswechsel (Stehen → Gehen → Sitzen) erkannt? Wie groß ist die sichtbare Verzögerung auf einem zweiten Viewer?
+- Messwerkzeuge in Maya, rein auswertend.
 
-## 4. Prototyp-Plan (klein, in Maya)
+**Stufe 1 – K1** auf den Körperbones. Startwert ist das Ergebnis von 0.4.
 
-**Testobjekt.** Bodenlanges Säulenkleid mit hohem Schlitz rechts und zwei Straps, auf einem festen Ziel-Body. Zusätzlich 2 Shape-Varianten, simuliert über skalierte Collision Volumes.
+**Stufe 2 – Zustandsebene** mit zunächst **3 Zuständen** (Stehen, Gehen, Sitzen) und 8 Cloth-Bones, gemeinsam mit den Gewichten gelöst. Noch ohne Loop.
 
-**Stufe 0 – Messgerüst und Machbarkeitstest (vor jedem Solver).**
-- Uploadtest: `.anim` mit Positions- und Rotationskeys auf `mHindLimb1Left` und `mTail1`, möglichst auf dem Beta-Grid. Wir prüfen, ob die Bones sich bewegen und ob Ease-In/Out sauber zurückblendet.
-- Messwerkzeuge in Maya als reine Auswertung, ohne Deformer-Abhängigkeit (Details unten).
+**Stufe 3 (optional)** – phasenrobuste Geh-Loop aus einer nCloth-Zerlegung.
 
-**Stufe 1 – K1** auf den Körperbones. Startwert ist das Ergebnis von 0.4. 6 Trainingsposen.
+### Bibliothek und Testaufteilung
 
-**Stufe 2 – K2** mit 8 Cloth-Bones: `mHindLimb1–4 L/R` für die Schlitz- und Vorderpanels, oder `mTail1–4` für den hinteren Saum. Grundlage ist ein nCloth-Gehzyklus mit Körperkollision. Die Kreatorin korrigiert 2–3 Frames.
-
-**Stufe 3 – K3**: 4 Stilparameter (Fußkreuzung, Beckenrolle, Kniehub, Schrittlänge), 3 Ziele (Schlitzphase, Silhouette, Eindringtiefe) plus ein Natürlichkeitsterm. Daraus entstehen 3 Varianten zur Auswahl. Zusätzlich ein Overlay-Loop, bewertet gegen 2 fremde Gänge.
+- Pro Zustand Animationen aus **mindestens 4 verschiedenen AOs bzw. Posenquellen**.
+- **Training:** 2–3 Quellen pro Zustand.
+- **Test (nie gesehen):** 1–2 andere Quellen pro Zustand, dazu ungesehene Extremposen:
+  - tiefes Sitzen mit 100° Hüftbeugung;
+  - Bein über Bein;
+  - Knie hoch auf 90°;
+  - weiter Ausfallschritt;
+  - Knien;
+  - Hüftdrehung 30° mit Schritt;
+  - Treppenstufe.
+- **Übergänge:** Stehen ↔ Gehen ↔ Sitzen, je einmal mit „Stoff verzögert“ (alter Stoffzustand auf neuer Körperpose über 0,5 s).
 
 ### Vergleich mit dem bisherigen Rig (0.4)
 
@@ -350,51 +423,34 @@ Gleiches Kleid, gleicher Body, **identische Posen und Clips**. Verglichen werden
 |---|---|
 | A | 0.4 |
 | B | K1 |
-| C | K1 + K2 + K3 |
-
-**Posen und Clips.**
-- **Trainingsposen** (für die Optimierung genutzt): Neutral, Gehen Kontakt L, Gehen Passing, breiter Stand, Kniebeuge 60°, Sitzen auf der Kante.
-- **Ungesehene Extremposen** (nie in der Optimierung):
-  - tiefes Sitzen mit 100° Hüftbeugung;
-  - Bein über Bein;
-  - Knie hoch auf 90°;
-  - weiter Ausfallschritt;
-  - Knien;
-  - Hüftdrehung 30° mit Schritt;
-  - Treppenstufe.
-- **Clips**:
-  - die Signature Walk;
-  - **zwei fremde Gänge**, nicht genutzt;
-  - Stand → Walk → Stand mit realen Ease-Zeiten;
-  - Drehung auf der Stelle.
-- **Shape-Varianten**: Basis plus 2 skalierte Collision-Volume-Sätze.
+| C | K1 + Zustandsebene |
 
 **Messgrößen.**
 
 | Kriterium | Messung |
 |---|---|
 | Clipping | Anteil der Kleid-Vertices mit signiertem Abstand zum Körper < −1 mm; maximale Eindringtiefe; betroffene Fläche. Pro Pose und Frame, getrennt nach Training und Test. |
-| Silhouettentreue | Binärmasken aus Front, Seite und Rücken (orthografisch), IoU und Konturabstand (Chamfer, mm) gegen die Zielsilhouette (Entwurf bzw. korrigierte Referenz). |
-| Verzerrung | Kantendehnung und Flächenverhältnis pro Dreieck gegenüber der Ruheform (95. Perzentil + Maximum); Volumenverlust an Knie und Hüfte (Candy-Wrapper); Karotextur-Render zur Sichtkontrolle. |
-| Bewegungsübergänge | Vertex-Beschleunigung und Ruck pro Frame; maximaler Sprung pro Frame bei Ease-In/Out und Loop-Naht; Durchdringung während des Blends. |
-| Designabsicht | Schlitzöffnung über der Gangphase (Kurve vs. Wunschfenster); Strap-Spannung als Abstand der Strap-Enden. |
-| Wahrnehmung | Blindvergleich nebeneinander (Turntable + Gehvideo) durch dich und 2 weitere Personen, Fragen zu Natürlichkeit, Silhouette und „wirkt der Schlitz gewollt?“. |
+| Silhouettentreue | Binärmasken aus Front, Seite und Rücken (orthografisch), IoU und Konturabstand (Chamfer, mm) gegen die Zielsilhouette des jeweiligen Zustands. |
+| Verzerrung | Kantendehnung und Flächenverhältnis pro Dreieck gegenüber der Ruheform (95. Perzentil + Maximum); Volumenverlust an Knie und Hüfte; Karotextur-Render. |
+| Bewegungsübergänge | Vertex-Beschleunigung und Ruck pro Frame; maximaler Sprung pro Frame beim Zustandswechsel; Durchdringung während des Blends **und** in der Verzögerungsphase. |
+| Designabsicht | Schlitzöffnung pro Zustand (geschlossen im Stehen, offen im Gehen, seitlich im Sitzen) gegen die Vorgabe. |
+| Wahrnehmung | Blindvergleich nebeneinander (Turntable + Clips **mit fremden AOs**) durch dich und 2 weitere Personen: Natürlichkeit, Silhouette, „wirkt die Reaktion des Stoffs gewollt oder verspätet?“ |
 
 **Bewertung ohne Übertreibung.**
-- Gewonnen hat eine Variante nur, wenn sie in den **Testposen** nicht schlechter ist als 0.4 und in mindestens zwei Kriterien deutlich besser.
+- Gewonnen hat eine Variante nur, wenn sie bei den **ungesehenen AOs und Extremposen** nicht schlechter ist als 0.4 und in mindestens zwei Kriterien deutlich besser.
 - Ergebnisse werden pro Pose berichtet, nicht nur als Mittelwert. Die schlechteste Pose wird immer gezeigt.
-- Wir erwarten Restclipping in Extremposen und sagen das auf der Produktseite auch so.
+- Restclipping in Extremposen und die Verzögerung bei Zustandswechseln benennen wir offen.
 
-**Erfolgs- und Abbruchkriterien.**
-- Stufe 0 scheitert, weil Positionskeys auf Nicht-Pelvis-Bones nicht abgespielt werden → K2/K3 nur mit Rotationen weiterführen (geringere Ausdruckskraft) und das dokumentieren.
-- K3-Varianten werden im Blindtest als unnatürlich bewertet → Stilparameter enger fassen oder nur den Overlay-Modus ausliefern.
+**Abbruchkriterien.**
+- Positionskeys auf Nicht-Pelvis-Bones werden nicht abgespielt → nur Rotationen, Ausdruckskraft geringer, dokumentieren.
+- Die Verzögerung beim Zustandswechsel wirkt im Blindtest eher wie ein Fehler als wie Stoffträgheit → weniger Zustände, längere Blends oder nur die Sitzform automatisch, den Rest per Menü (Übergang zu K4).
 
 ---
 
-## 5. Nächste Schritte
+## 4. Nächste Schritte
 
-1. Stufe 0 umsetzen: Testanimation exportieren, Uploadtest, Messgerüst in Maya.
-2. Danach Stufe 1 (K1) als Erweiterung von 0.4. Der vorhandene Gewichtscode bleibt der Startwert und die Vergleichsbasis.
+1. Stufe 0 umsetzen: Testanimation nur auf Cloth-Bones exportieren, Uploadtest mit laufender fremder AO, Skripttest für die Zustandserkennung, Messgerüst in Maya.
+2. Danach Stufe 1 (K1) als Erweiterung von 0.4. Der vorhandene Gewichtscode bleibt Startwert und Vergleichsbasis.
 
 ## Quellen
 
@@ -416,4 +472,5 @@ Gleiches Kleid, gleicher Body, **identische Posen und Clips**. Verglichen werden
   - Animation Priority: <https://wiki.secondlife.com/wiki/Animation_Priority>
   - Mesh/Rigging Fitted Mesh: <https://wiki.secondlife.com/wiki/Mesh/Rigging_Fitted_Mesh>
   - Animesh User Guide: <https://wiki.secondlife.com/wiki/Animesh_User_Guide>
+- LSL: `llGetAnimation`, `llGetAgentInfo`, `llStartAnimation` (SL-Wiki, LSL-Portal)
 - Le, B. H., Deng, Z.: *Smooth Skinning Decomposition with Rigid Bones*, ACM TOG (SIGGRAPH Asia) 2012.
