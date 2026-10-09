@@ -54,3 +54,22 @@ Laut Kreatorin ist das der optisch beste Stand: keine Verzerrung, aber viel Clip
 
 1. Die Kreatorin legt beide Varianten mit `mcd_fit_apply.py` in Maya an und vergleicht sie selbst in echten Posen.
 2. Danach Stufe 2: eine Stoffpose „Sitzen“ auf HindLimb-Bones für die Gesäß-/Oberschenkelpartie, gemeinsam mit den Gewichten gelöst.
+
+## Rückmeldung aus Second Life (Variante „Gewichte + 6 mm“)
+
+Die Kreatorin hat die Variante in SL getragen:
+- **Insgesamt:** sieht sehr gut aus, clippt nur noch wenig, ist kaum zerknittert. Hüfte und Bauch wirken eher minimal enger als weiter.
+- **Verbleibende Schwachstelle:** Beim Gehen drückt die Wade des hinteren Beins durch den Saum.
+
+Nachrechnung mit echtem Gangzyklus (Knie in der Schwungphase bis ca. 60°):
+
+| Maßnahme | Unterschenkel-Clipping in der Schwungphase (Gehen 70 %) |
+|---|---|
+| 0.5.3 | 7,0 % |
+| Gangposen im Training | 6,0 % |
+| Ruheform bis 1,5 cm weiter | 4,7 % (Hüfte wäre dann bis 1,5 cm weiter) |
+
+**Folgerung:** Mit festen Gewichten und Ruheform lässt sich die nach hinten schwingende Wade nicht
+auffangen. Vorschlag für Stufe 2: eine Stoffpose „Gehen“. Der Saum hinter den Beinen wird dabei,
+solange der Avatar geht, um 3–4 cm nach hinten ausgestellt, unabhängig von der Schrittphase.
+Beim Stehen bleibt die geschlossene Linie.
