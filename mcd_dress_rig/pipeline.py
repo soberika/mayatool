@@ -52,7 +52,7 @@ DEFAULTS = dict(core.SKIRT_DEFAULTS, skirt=True, start_offset=None, transition=N
                 skirt_on_cv=True, layer_distance=None, leg_contact=None, contact_strength=0.9,
                 sweep_sit=True, sweep_side=False, contact_smooth=8, sweep_scale=0.5, widen=0.0, widen_back=0.0,
                 upper_smooth=0, strip=None, strip_hold=1.0, strip_rings=3, strip_mode='leg',
-                strip_leg=0.8, auto_strips=True)
+                strip_leg=0.8, auto_strips=True, edge_band=4.0)
 SUFFIX = '_mcdRig'
 TOLERANCE_SUM = 1e-4
 TOLERANCE_SHAPE = 1e-3   # scene units (cm)
@@ -243,10 +243,36 @@ def weight_base(base, body, info, params, progress):
         found = core.detect_slit_strips(base.points, base.triangles, base.shell_of, frame,
                                         params['start_offset'], skip)
         info['slits'], info['strips'] = found['slits'], found['strips']
+        original = result
         for strip in found['strips']:
-            target, _ = strip_target(result, strip['vertices'], strip['side'], info, params)
+            target, _ = strip_target(original, strip['vertices'], strip['side'], info, params)
             result, _ = core.hold_selection(result, base.adjacency, strip['vertices'], target,
                                             params['strip_hold'], 0, params['maximum'], pelvis_m)
+        # Edge band: main fabric and lining along the slit edge move like the strips,
+        # fading out with the distance from the edge and towards the body centre
+        # (a wrap edge may cross the middle; there both legs meet).
+        width = params.get('edge_band') or 0.0
+        info['band_vertices'] = 0
+        if width > 0.0:
+            result = list(result)
+            # The real slit is the one with facing strips; without strips use every slit.
+            sides = set(strip['side'] for strip in found['strips'])
+            for slit in found['slits']:
+                if sides and slit['side'] not in sides:
+                    continue
+                target, _ = strip_target(original, slit['edge'], slit['side'], info, params)
+                for v, d in core.edge_band(base.points, base.adjacency, slit['edge'], width).items():
+                    if data[v][2] >= 0.5 or factors[v] <= 0.0:
+                        continue
+                    lateral = core.skirt_frame_coords(base.points[v], frame)[0]
+                    if lateral * slit['side'] <= 0.0:
+                        continue
+                    amount = (params['strip_hold'] * (1.0 - core.smoothstep(d / width))
+                              * core.smoothstep(abs(lateral) / (0.5 * frame['half_width'])))
+                    if amount > 0.0:
+                        result[v] = core.normalize_row(core.mix_rows(result[v], target, amount),
+                                                       params['maximum'], fallback=pelvis_m)
+                        info['band_vertices'] += amount >= 0.5
     return result, factors
 
 
@@ -265,6 +291,9 @@ def describe_detection(info, params):
                                                                             'Mittelwert')))
     if not info.get('strips'):
         lines.append('  keine schmalen Streifen an einem Schlitz gefunden')
+    if params.get('edge_band') and info.get('slits'):
+        lines.append('  Schlitzkante: Stoff bis %.1f cm von der Kante bewegt sich mit (%d Vertices stark)'
+                     % (params['edge_band'], info.get('band_vertices', 0)))
     return '\n'.join(lines)
 
 

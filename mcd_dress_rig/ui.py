@@ -84,6 +84,8 @@ class DressRigWindow(object):
         self.c['strip_info'] = cmds.text(label='Kein Streifen gemerkt.', align='left')
         self.c['auto_strips'] = cmds.checkBox(label='Schlitz-Streifen automatisch erkennen (gerade halten)',
                                               value=True)
+        self.c['edge_band'] = cmds.floatFieldGrp(label='Schlitzkante mitnehmen bis (cm, 0 = aus)', value1=4.0,
+                                                 precision=2, columnWidth2=(200, 80))
         self.c['strip_mode'] = cmds.optionMenu(label='Streifen folgt')
         cmds.menuItem(label='als Ganzes (Mittelwert, z. B. Schlitzkante)')
         cmds.menuItem(label='dem Becken (ganz ruhig, z. B. hintere Mitte)')
@@ -256,6 +258,7 @@ class DressRigWindow(object):
             cmds.optionMenu(self.c['strip_mode'], query=True, select=True), 'average')
         params['strip_leg'] = cmds.floatSliderGrp(self.c['strip_leg'], query=True, value=True)
         params['auto_strips'] = cmds.checkBox(self.c['auto_strips'], query=True, value=True)
+        params['edge_band'] = cmds.floatFieldGrp(self.c['edge_band'], query=True, value1=True)
         params['strip_rings'] = cmds.intSliderGrp(self.c['strip_rings'], query=True, value=True)
         params['upper_smooth'] = cmds.intSliderGrp(self.c['upper_smooth'], query=True, value=True)
         params['widen'] = cmds.floatFieldGrp(self.c['widen'], query=True, value1=True)

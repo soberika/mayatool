@@ -415,11 +415,16 @@ def detect_slit_strips(points, triangles, shell_of, frame, skirt_top, skip=None,
             border.update((a, b))
     hem = {s: min(coords[v][1] for v in vs) for s, vs in shells.items()}
     slit_vertices = {1: [], -1: []}
+    edge_vertices = {1: [], -1: []}
     for v in border:
         s = shell_of[v]
-        if s in big and in_skirt[v] and coords[v][1] > hem[s] + 0.3 * leg:
-            slit_vertices[1 if coords[v][0] >= 0.0 else -1].append(v)
-    slits = [{'side': side, 'vertices': vs, 'top': max(coords[v][1] for v in vs)}
+        if s in big and in_skirt[v]:
+            side = 1 if coords[v][0] >= 0.0 else -1
+            edge_vertices[side].append(v)          # whole edge, down to the hem
+            if coords[v][1] > hem[s] + 0.3 * leg:
+                slit_vertices[side].append(v)      # the part that makes it a slit
+    slits = [{'side': side, 'vertices': vs, 'top': max(coords[v][1] for v in vs),
+              'edge': edge_vertices[side]}
              for side, vs in slit_vertices.items() if len(vs) >= 10]
     strips = []
     for s, vs in shells.items():
@@ -460,6 +465,25 @@ def detect_slit_strips(points, triangles, shell_of, frame, skirt_top, skip=None,
             strips.append({'shell': s, 'side': side, 'vertices': vs, 'length': length,
                            'width': width, 'gap': gap})
     return {'slits': slits, 'strips': strips}
+
+
+def edge_band(points, adjacency, seeds, width):
+    """Geodesic distance (along mesh edges) from `seeds`, up to `width`."""
+    import heapq
+    best = {v: 0.0 for v in seeds}
+    heap = [(0.0, v) for v in seeds]
+    heapq.heapify(heap)
+    while heap:
+        d, v = heapq.heappop(heap)
+        if d > best.get(v, 1e30):
+            continue
+        for n in adjacency[v]:
+            step = sub(points[v], points[n])
+            nd = d + math.sqrt(dot(step, step))
+            if nd <= width and nd < best.get(n, 1e30):
+                best[n] = nd
+                heapq.heappush(heap, (nd, n))
+    return best
 
 
 def average_row(rows, indices, maximum, fallback):
