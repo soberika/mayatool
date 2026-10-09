@@ -338,7 +338,8 @@ def candidate_influences(dress, body, rig, max_candidates=6):
 
 def fit_weights(rig, body, dress, poses, margin=0.3, keep=0.6, smooth=0.3,
                 passes=3, max_influences=4, offset_limit=0.0, rest_weight=3.0,
-                progress=print):
+                progress=print, worlds=None, init_weights=None, init_offsets=None,
+                candidates=None, reference=None):
     """Fit weights on the training poses. Returns (weights, offsets, history).
 
     margin: wanted clearance outside the body (scene units; 0.3 = 3 mm in cm).
@@ -347,12 +348,19 @@ def fit_weights(rig, body, dress, poses, margin=0.3, keep=0.6, smooth=0.3,
     offset_limit: max outward rest offset per vertex (0 = geometry unchanged).
     rest_weight: how strongly new weights must keep the rest shape (the rest
     pose is solved as an extra pose whose target is the original rest shape).
+    worlds: optional [(name, world matrices)] used instead of 'poses' (e.g. with
+    cloth bones moved per state). init_weights/init_offsets: start values.
+    candidates: per-vertex influence lists. reference: weights to stay close to
+    (default: the start weights).
     """
-    train = [(name, rig.pose(rot)) for name, kind, rot in poses if kind == 'train']
-    weights = dress.weights.copy()
-    original = dress.weights.copy()
-    offsets = np.zeros((dress.mesh.count, 3))
-    cands = candidate_influences(dress, body, rig)
+    if worlds is None:
+        worlds = [(name, rig.pose(rot)) for name, kind, rot in poses if kind == 'train']
+    train = worlds
+    weights = (dress.weights if init_weights is None else init_weights).copy()
+    original = (weights if reference is None else reference).copy()
+    offsets = (np.zeros((dress.mesh.count, 3)) if init_offsets is None
+               else init_offsets.copy())
+    cands = candidate_influences(dress, body, rig) if candidates is None else candidates
     surfaces = [BodySurface(body.deform(w), body.tris) for _, w in train]
     n = dress.mesh.count
     neighbours = [[] for _ in range(n)]
@@ -495,6 +503,7 @@ def save_result(path, data, dress, weights, offsets, settings, report):
     g_inv = np.linalg.inv(dress.mesh.geom_matrix[:3, :3])
     obj_offsets = offsets @ g_inv
     rows = []
+    weights = np.array([_cap(row, 4) for row in weights])     # SL: max 4 per vertex
     for v in range(dress.mesh.count):
         nz = np.nonzero(weights[v] > 1e-6)[0]
         rows.append([[int(j), round(float(weights[v, j]), 6)] for j in nz])

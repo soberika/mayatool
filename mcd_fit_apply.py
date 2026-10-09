@@ -127,9 +127,28 @@ def apply_result(dress, data):
     for influence in fn_skin.influenceObjects():
         influences[_leaf(influence.fullPathName())] = (
             influence.fullPathName(), fn_skin.indexForInfluenceObject(influence))
-    missing = [n for n in data['influences'] if n not in influences]
-    if missing:
-        raise ValueError('Diese Joints fehlen im Skin des Kleides: %s' % ', '.join(missing))
+    # Joints new to this skin (e.g. HindLimb cloth bones from stage 2) must
+    # exist in the scene. Their bind matrix is derived from mPelvis, so it
+    # matches the dress's existing bind (cloth bones are at rest relative to
+    # the pelvis in the neutral pose).
+    added = {}
+    for name in data['influences']:
+        if name in influences:
+            continue
+        found = list(dict.fromkeys((cmds.ls(name, long=True, type='joint') or [])
+                                   + (cmds.ls('*:' + name, long=True, type='joint') or [])))
+        if len(found) != 1:
+            raise ValueError('Joint %s fehlt in der Szene oder ist mehrdeutig (%d). Bitte das '
+                             'komplette SL-Skelett laden.' % (name, len(found)))
+        added[name] = found[0]
+    if added and 'mPelvis' not in influences:
+        raise ValueError('mPelvis ist kein Einfluss des Kleides; neue Joints koennen nicht '
+                         'passend gebunden werden.')
+    pelvis_frame = None
+    if added:
+        pelvis_path, pelvis_index = influences['mPelvis']
+        pelvis_frame = (om.MMatrix(cmds.getAttr('%s.bindPreMatrix[%d]' % (skin, pelvis_index)))
+                        * om.MMatrix(cmds.getAttr(pelvis_path + '.worldMatrix[0]')))
 
     cmds.undoInfo(openChunk=True, chunkName='mcdFitApply')
     copy = None
@@ -148,7 +167,7 @@ def apply_result(dress, data):
             points[v] = om.MPoint(p.x + off[3 * v], p.y + off[3 * v + 1], p.z + off[3 * v + 2])
         om.MFnMesh(_dag(copy_shape)).setPoints(points, om.MSpace.kObject)
         names = list(data['influences'])
-        joints = [influences[n][0] for n in names]
+        joints = [influences[n][0] if n in influences else added[n] for n in names]
         new_skin = cmds.skinCluster(joints, copy, toSelectedBones=True, bindMethod=0,
                                     normalizeWeights=1, maximumInfluences=4,
                                     obeyMaxInfluences=False,
@@ -164,9 +183,13 @@ def apply_result(dress, data):
             leaf = _leaf(influence.fullPathName())
             order.append(leaf)
             logical.append(fn_new.indexForInfluenceObject(influence))
-            source_index = influences[leaf][1]
-            cmds.setAttr('%s.bindPreMatrix[%d]' % (new_skin, logical[-1]),
-                         cmds.getAttr('%s.bindPreMatrix[%d]' % (skin, source_index)),
+            if leaf in influences:
+                matrix = cmds.getAttr('%s.bindPreMatrix[%d]' % (skin, influences[leaf][1]))
+            else:
+                world = om.MMatrix(cmds.getAttr(added[leaf] + '.worldMatrix[0]'))
+                product = pelvis_frame * world.inverse()
+                matrix = [product.getElement(r, c) for r in range(4) for c in range(4)]
+            cmds.setAttr('%s.bindPreMatrix[%d]' % (new_skin, logical[-1]), matrix,
                          type='matrix')
         # Locks on the NEW skinCluster only, like Dress Auto Rig: the lock plug
         # is usually connected to the joint's lockInfluenceWeights.
