@@ -132,6 +132,7 @@ def apply_result(dress, data):
         raise ValueError('Diese Joints fehlen im Skin des Kleides: %s' % ', '.join(missing))
 
     cmds.undoInfo(openChunk=True, chunkName='mcdFitApply')
+    copy = None
     try:
         copy = cmds.duplicate(transform, name=_leaf(transform) + '_fit')[0]
         cmds.delete(copy, constructionHistory=True)
@@ -167,17 +168,26 @@ def apply_result(dress, data):
             cmds.setAttr('%s.bindPreMatrix[%d]' % (new_skin, logical[-1]),
                          cmds.getAttr('%s.bindPreMatrix[%d]' % (skin, source_index)),
                          type='matrix')
-        for plug in ('lockWeights',):
-            for k in logical:
-                attr = '%s.%s[%d]' % (new_skin, plug, k)
-                if cmds.objExists(attr):
-                    cmds.setAttr(attr, False)
+        # Locks on the NEW skinCluster only, like Dress Auto Rig: the lock plug
+        # is usually connected to the joint's lockInfluenceWeights.
+        for k in logical:
+            attr = '%s.lockWeights[%d]' % (new_skin, k)
+            if cmds.objExists(attr):
+                for source in cmds.listConnections(attr, source=True, destination=False,
+                                                   plugs=True) or []:
+                    cmds.disconnectAttr(source, attr)
+                cmds.setAttr(attr, False)
         comp_fn = om.MFnSingleIndexedComponent()
         component = comp_fn.create(om.MFn.kMeshVertComponent)
         comp_fn.setCompleteData(count)
         indices = om.MIntArray(list(range(len(order))))
         fn_new.setWeights(_dag(copy_shape), component, indices,
                           om.MDoubleArray(dense_weights(data, order)), False)
+    except Exception:
+        # Leave no half-built copy behind.
+        if copy and cmds.objExists(copy):
+            cmds.delete(copy)
+        raise
     finally:
         cmds.undoInfo(closeChunk=True)
     return copy
