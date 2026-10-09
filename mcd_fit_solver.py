@@ -561,3 +561,129 @@ def local_flare(rig, body, dress, weights, poses, limit=2.5, margin=0.4, passes=
         local = np.einsum('va,vab->vb', world_offset, inv)
         offsets = (np.zeros_like(local) if base_offsets is None else base_offsets) + local
     return offsets, amount, region
+
+
+def column_hem(rig, dress, weights, start_height, target_half_width, base_offsets=None,
+               smooth=20):
+    """Straighten a skirt that narrows toward the hem into a column / slight A.
+
+    Below 'start_height' (scene units, up axis) every vertex is moved sideways
+    (along the left axis, away from the centre line) so that the skirt's half
+    width reaches 'target_half_width' at the lowest point, blended in smoothly
+    from start_height. Front/back lines are not touched. Returns offsets."""
+    up, left = rig.axes['up'], rig.axes['left']
+    rest = dress.deform(rig.rest, weights, base_offsets)
+    y = rest @ up
+    centre = rig.position('mPelvis') @ left
+    x = rest @ left - centre
+    y_low = y.min()
+    t = np.clip((start_height - y) / max(start_height - y_low, 1e-6), 0.0, 1.0)
+    t = t * t * (3 - 2 * t)                             # smoothstep blend-in
+    # Current half width per height band, to scale each band to the target.
+    bands = np.round(y / 2.0).astype(int)
+    half = {}
+    for band in np.unique(bands):
+        s = bands == band
+        half[band] = max(np.abs(x[s]).max(), 1e-6)
+    cur = np.array([half[b] for b in bands])
+    ref_half = np.abs(x[(y > start_height - 2) & (y < start_height + 2)]).max()
+    target = ref_half + (target_half_width - ref_half) * t
+    scale = np.where(t > 0, np.maximum(target / cur, 1.0), 1.0)
+    dx = x * (scale - 1.0)
+    dx = smooth_field(dx, dress.edges, iterations=smooth)
+    blend = np.einsum('vj,jab->vab', weights,
+                      np.einsum('jab,jbc->jac', dress.bind, rig.rest[dress.joint]))
+    world = left[None, :] * dx[:, None]
+    local = np.einsum('va,vab->vb', world, np.linalg.inv(blend[:, :3, :3]))
+    return (np.zeros_like(local) if base_offsets is None else base_offsets) + local
+
+
+def straight_back(rig, dress, weights, top_height, extra_at_hem, base_offsets=None,
+                  smooth=15):
+    """Make the skirt's back line a STRAIGHT slanted line from 'top_height' down
+    to the hem, 'extra_at_hem' further back than now at the hem (column / slight
+    A-line as in a classic maxi skirt). Each height band's back half is shifted
+    backwards by (straight line - current back line), weighted from 0 at the
+    side seams to 1 at the centre back. Returns offsets."""
+    up, fwd = rig.axes['up'], rig.axes['forward']
+    rest = dress.deform(rig.rest, weights, base_offsets)
+    y = rest @ up
+    z = rest @ fwd
+    bands = np.round(y / 2.0).astype(int)
+    back_line, front_line = {}, {}
+    for band in np.unique(bands):
+        s = bands == band
+        back_line[band] = z[s].min()
+        front_line[band] = z[s].max()
+    top_band = int(round(top_height / 2.0))
+    low_band = bands.min()
+    z_top = back_line[min(back_line, key=lambda b: abs(b - top_band))]
+    z_low = back_line[low_band] - extra_at_hem if low_band in back_line else z.min() - extra_at_hem
+    y_top, y_low = top_band * 2.0, low_band * 2.0
+    shift = np.zeros(len(y))
+    for band in np.unique(bands):
+        yb = band * 2.0
+        if yb >= y_top:
+            continue
+        t = (y_top - yb) / max(y_top - y_low, 1e-6)
+        target = z_top + (z_low - z_top) * t
+        delta = back_line[band] - target              # > 0: needs to go further back
+        if delta <= 0:
+            continue
+        s = bands == band
+        centre = 0.5 * (back_line[band] + front_line[band])
+        depth = max(centre - back_line[band], 1e-6)
+        w = np.clip((centre - z[s]) / depth, 0.0, 1.0)
+        w = w * w * (3 - 2 * w)
+        shift[s] = delta * w
+    shift = smooth_field(shift, dress.edges, iterations=smooth)
+    blend = np.einsum('vj,jab->vab', weights,
+                      np.einsum('jab,jbc->jac', dress.bind, rig.rest[dress.joint]))
+    world = -fwd[None, :] * shift[:, None]
+    local = np.einsum('va,vab->vb', world, np.linalg.inv(blend[:, :3, :3]))
+    return (np.zeros_like(local) if base_offsets is None else base_offsets) + local
+
+
+def fill_back_line(rig, dress, weights, top_height, base_offsets=None, smooth=15):
+    """Remove dents in the skirt's back line below 'top_height': the side
+    profile's back line is replaced by its convex envelope (straight segments
+    between its outermost points), so an added flare reads as a straight,
+    slanted column instead of a bump. Only shifts backwards. Returns offsets."""
+    up, fwd = rig.axes['up'], rig.axes['forward']
+    rest = dress.deform(rig.rest, weights, base_offsets)
+    y = rest @ up
+    z = rest @ fwd
+    bands = np.round(y / 2.0).astype(int)
+    keys = sorted(b for b in np.unique(bands) if b * 2.0 <= top_height)
+    back = {b: z[bands == b].min() for b in keys}
+    front = {b: z[bands == b].max() for b in keys}
+    pts = [(b * 2.0, back[b]) for b in keys]
+    # Lower convex hull in (y, z): the envelope that lies behind all points.
+    hull = []
+    for p in pts:
+        while len(hull) >= 2:
+            (x1, z1), (x2, z2) = hull[-2], hull[-1]
+            if (x2 - x1) * (p[1] - z1) - (z2 - z1) * (p[0] - x1) <= 0:
+                hull.pop()
+            else:
+                break
+        hull.append(p)
+    hy = np.array([h[0] for h in hull])
+    hz = np.array([h[1] for h in hull])
+    shift = np.zeros(len(y))
+    for b in keys:
+        target = np.interp(b * 2.0, hy, hz)
+        delta = back[b] - target
+        if delta <= 1e-3:
+            continue
+        s = bands == b
+        centre = 0.5 * (back[b] + front[b])
+        depth = max(centre - back[b], 1e-6)
+        w = np.clip((centre - z[s]) / depth, 0.0, 1.0)
+        shift[s] = delta * w * w * (3 - 2 * w)
+    shift = smooth_field(shift, dress.edges, iterations=smooth)
+    blend = np.einsum('vj,jab->vab', weights,
+                      np.einsum('jab,jbc->jac', dress.bind, rig.rest[dress.joint]))
+    world = -fwd[None, :] * shift[:, None]
+    local = np.einsum('va,vab->vb', world, np.linalg.inv(blend[:, :3, :3]))
+    return (np.zeros_like(local) if base_offsets is None else base_offsets) + local

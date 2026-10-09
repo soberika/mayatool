@@ -65,3 +65,24 @@ Trainiert auf Schrittweiten ×1,0 / ×1,25 / ×1,4. Neu ist eine kleine Zugabe *
 | hinten 7,5 | −64 % | −59 % | −40 % | +6,1 cm | 0 | 0 | 21 % |
 | **hinten 7,5 / vorn 2** | **−73 %** | **−66 %** | **−46 %** | +6,1 cm | +0,7 cm | 0 | 22 % |
 | hinten 9 / vorn 2,5 | −74 % | −71 % | −58 % | +6,9 cm | +0,8 cm | 0 | 26 % |
+
+## Referenzbild: Säulenrock statt nach unten enger Saum
+
+Das Design-Referenzbild zeigt einen Rock, der von der Hüfte **gerade** fällt, unten eher etwas weiter. Gemessen ist das Thin-Kleid in der Grundpose:
+- Es wird unterhalb von etwa 20 cm Höhe enger, von 39 auf 36,6 cm Breite.
+- Die Rückenlinie hatte durch das Ausstellen eine Beule unterhalb des Knies.
+
+**Neue Werkzeuge** in `mcd_fit_solver`:
+- `column_hem`: Der Rock wird unterhalb einer Höhe seitlich glatt bis zur Zielbreite geweitet.
+- `fill_back_line`: Die Rückenlinie wird durch ihre konvexe Hülle ersetzt. Dadurch entstehen gerade Segmente statt Beule.
+- `straight_back`: parametrische gerade Rückenlinie. Am Thin-Kleid wirkungslos, weil die Wade die Innenfläche trifft, nicht die äußere Rückenlinie.
+
+**Wadenclipping** (Vertices über 13 Gangphasen):
+
+| Variante | Schritte ×1,0 | ×1,25 | ×1,4 |
+|---|---|---|---|
+| 0.5.3 | 2113 | 2900 | 3151 |
+| 7,5 hinten / 2 vorn | 567 | 1025 | 1642 |
+| **+ Säule 45 cm + gerade Rückenlinie** | **233** | **511** | **944** |
+
+Dehnung in Ruhe p99 28 %. Die Silhouette folgt jetzt der Säulenform des Referenzbildes.
