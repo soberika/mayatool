@@ -116,3 +116,31 @@ Dehnung in Ruhe: p99 36 %.
 - Die Mittelzonen vorn und hinten zwischen den Beinen werden stark gedehnt. Empfohlen werden dort mehr Geometrie und weich abgestufte Gewichte (Mitte 0,5/0,5, nach außen abgestuft).
 - Manche Kreatoren riggen den Rock stärker auf das Becken.
 - Als Notlösungen werden eine Alpha-Ebene oder eine passende Unterhose bzw. ein Unterrock genannt.
+
+## SL-Video der A-Linie: Rücken gut, Schlitz ausgefranst. Ursache und Korrektur
+
+**Beobachtung im SL-Video:**
+- Der Rücken fällt als ruhige, leicht ausgestellte Säule, nah an der Referenz.
+- Am Schlitz hängen dünne Streifen und Zacken herunter.
+- Bei gekreuzten Beinen kommt der Oberschenkel durch das vordere Stoffteil.
+
+**Ursache der Streifen:** Das Kleid besteht aus mehreren getrennten Mesh-Teilen:
+
+| Teil | Vertices |
+|---|---|
+| Hauptteil | 34 426 |
+| Unterlage | 4 283 |
+| Schlitzstreifen | 527 und 495 |
+
+Die Formänderung wurde nur entlang von Mesh-Kanten geglättet, also pro Teil. Übereinanderliegende Teile wichen dadurch bis zu **6,2 cm** voneinander ab.
+
+**Korrektur:** `harmonize_offsets` mittelt die Verschiebung über Kanten **und** räumliche Nachbarn im Radius 2 cm.
+
+| | Teil-Versatz Ruhe (max) | Teil-Abstand beim Gehen (max) | Wade ×1,0 / ×1,25 / ×1,4 |
+|---|---|---|---|
+| A-Linie vorher | 6,2 cm | 6,1 cm | 30 / 328 / 716 |
+| **A-Linie harmonisiert** | **0,5 cm** | **0,4 cm** | 45 / 363 / 748 |
+
+**Lehre für das Tool:** Jede Formänderung muss über getrennte Mesh-Teile hinweg geglättet werden. Mesh-Kanten allein reichen nicht.
+
+**Noch offen:** Bei gekreuzten Beinen im Stand drückt der Oberschenkel durch das vordere Stoffteil am Schlitz. Das ist ein eigener Bereich: vorn, oberhalb des Knies.

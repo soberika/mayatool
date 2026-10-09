@@ -687,3 +687,26 @@ def fill_back_line(rig, dress, weights, top_height, base_offsets=None, smooth=15
     world = -fwd[None, :] * shift[:, None]
     local = np.einsum('va,vab->vb', world, np.linalg.inv(blend[:, :3, :3]))
     return (np.zeros_like(local) if base_offsets is None else base_offsets) + local
+
+
+def harmonize_offsets(rig, dress, weights, offsets, radius=1.2, iterations=12):
+    """Make rest-shape offsets agree across SEPARATE mesh parts that touch
+    (lining, slit trims, overlapping panels). Offsets computed or smoothed per
+    mesh part can differ by centimetres between parts that lie on top of each
+    other, which shows as frayed strips at a slit. The world-space displacement
+    is averaged over mesh edges AND spatial neighbours within 'radius' (rest
+    pose), then converted back to pre-skin offsets."""
+    rest = dress.deform(rig.rest, weights)
+    disp = dress.deform(rig.rest, weights, offsets) - rest
+    pairs = cKDTree(rest).query_pairs(radius, output_type='ndarray')
+    links = np.vstack([dress.edges, pairs]) if len(pairs) else dress.edges
+    degree = np.bincount(links.ravel(), minlength=len(rest)).astype(float)
+    for _ in range(iterations):
+        acc = np.zeros_like(disp)
+        np.add.at(acc, links[:, 0], disp[links[:, 1]])
+        np.add.at(acc, links[:, 1], disp[links[:, 0]])
+        avg = np.where(degree[:, None] > 0, acc / np.maximum(degree, 1.0)[:, None], disp)
+        disp = 0.5 * disp + 0.5 * avg
+    blend = np.einsum('vj,jab->vab', weights,
+                      np.einsum('jab,jbc->jac', dress.bind, rig.rest[dress.joint]))
+    return np.einsum('va,vab->vb', disp, np.linalg.inv(blend[:, :3, :3]))
