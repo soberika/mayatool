@@ -54,3 +54,14 @@ Trainiert jetzt auch auf großen Schritten (Faktor 1,25), Bereich bis Knie + 20 
 | 5,5 cm | −73 % | −51 % | bis 4,5 cm | wie 4 cm, etwas stärker (p99 15 %) |
 
 Die Breite von hinten bleibt bei allen Varianten unverändert.
+
+## Rückmeldung SL (5,5 cm): Dehnung fällt nicht auf, darf weiter gehen
+
+Trainiert auf Schrittweiten ×1,0 / ×1,25 / ×1,4. Neu ist eine kleine Zugabe **vorn** unterhalb des Knies für die Phase, in der das Schienbein nach vorn drückt.
+
+| Variante | Wade ×1,0 | ×1,25 | ×1,4 | Rückenlinie | Vorderlinie | Breite | Dehnung p99 |
+|---|---|---|---|---|---|---|---|
+| 5,5 cm (getestet) | −66 % | −46 % | −23 % | +4,5 cm | 0 | 0 | 15 % |
+| hinten 7,5 | −64 % | −59 % | −40 % | +6,1 cm | 0 | 0 | 21 % |
+| **hinten 7,5 / vorn 2** | **−73 %** | **−66 %** | **−46 %** | +6,1 cm | +0,7 cm | 0 | 22 % |
+| hinten 9 / vorn 2,5 | −74 % | −71 % | −58 % | +6,9 cm | +0,8 cm | 0 | 26 % |

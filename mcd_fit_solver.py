@@ -523,9 +523,11 @@ def save_result(path, data, dress, weights, offsets, settings, report):
 
 # --- local flare: give a walking calf room by widening only the lower back skirt ----
 def local_flare(rig, body, dress, weights, poses, limit=2.5, margin=0.4, passes=8,
-                above_knee=15.0, fade=30, base_offsets=None, front_margin=2.0):
+                above_knee=15.0, fade=30, base_offsets=None, front_margin=2.0,
+                direction='back'):
     """Rest-shape offsets ONLY on the skirt below (knee + above_knee) and behind
-    the body's side line, pushing backwards (-forward) by what the calves need
+    the body's side line, pushing backwards (-forward; direction='front' mirrors
+    it for the shins) by what the calves need
     in the given (walking) poses. Weights are NOT changed, so nothing can tear
     from weight noise; the offset field is smoothed and fades out at the
     region border. Returns pre-skin offsets (same space as Skin.base)."""
@@ -534,7 +536,8 @@ def local_flare(rig, body, dress, weights, poses, limit=2.5, margin=0.4, passes=
     y = rest @ up
     knee_y = rig.position('mKneeLeft') @ up
     centre_f = rig.position('mPelvis') @ fwd
-    region = (y < knee_y + above_knee) & ((rest @ fwd) < centre_f + front_margin)
+    sign = -1.0 if direction == 'back' else 1.0
+    region = (y < knee_y + above_knee) & (sign * ((rest @ fwd) - centre_f) > -front_margin)
     worlds = [rig.pose(rot) for rot in poses]
     surfaces = [BodySurface(body.deform(w), body.tris) for w in worlds]
     blend = np.einsum('vj,jab->vab', weights,
@@ -554,7 +557,7 @@ def local_flare(rig, body, dress, weights, poses, limit=2.5, margin=0.4, passes=
         # Fade toward the region border, then smooth the whole field once more.
         for _ in range(fade):
             amount = np.where(region, smooth_field(amount, dress.edges, iterations=1), 0.0)
-        world_offset = -fwd[None, :] * amount[:, None]
+        world_offset = sign * fwd[None, :] * amount[:, None]
         local = np.einsum('va,vab->vb', world_offset, inv)
         offsets = (np.zeros_like(local) if base_offsets is None else base_offsets) + local
     return offsets, amount, region
