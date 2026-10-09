@@ -144,5 +144,51 @@ class AxisTests(unittest.TestCase):
                 self.assertLess(quat_angle(q, back), 1e-6)
 
 
+class RibbonTests(unittest.TestCase):
+    def test_world_positions(self):
+        x, y, z = sa.world_position('mHindLimb1Left')
+        self.assertAlmostEqual(x, -0.404)
+        self.assertAlmostEqual(y, 0.129)
+        self.assertAlmostEqual(z, 1.026)
+
+    def test_dae_is_consistent(self):
+        import xml.etree.ElementTree as ET
+        ns = {'c': 'http://www.collada.org/2005/11/COLLADASchema'}
+        root = ET.fromstring(sa.ribbons_dae())
+        self.assertEqual(root.find('c:asset/c:up_axis', ns).text, 'Z_UP')
+        positions = root.find('.//c:float_array[@id="ribbons-positions-array"]', ns)
+        n_vert = int(positions.get('count')) // 3
+        names = root.find('.//c:Name_array', ns).text.split()
+        self.assertEqual(names, list(sa.RIBBON_BONES))
+        self.assertTrue(all(n in sa.CLOTH_BONES for n in names))
+        weights = root.find('.//c:vertex_weights', ns)
+        self.assertEqual(int(weights.get('count')), n_vert)
+        self.assertEqual(weights.find('c:vcount', ns).text.split(), ['1'] * n_vert)
+        binds = [float(v) for v in root.find(
+            './/c:float_array[@id="ribbons-bind-poses-array"]', ns).text.split()]
+        self.assertEqual(len(binds), 16 * len(names))
+        # Translation column of the first inverse bind = minus the joint position.
+        wx, wy, wz = sa.world_position(names[0])
+        self.assertAlmostEqual(binds[3], -wx, places=5)
+        self.assertAlmostEqual(binds[7], -wy, places=5)
+        self.assertAlmostEqual(binds[11], -wz, places=5)
+        tri = root.find('.//c:triangles', ns)
+        indices = [int(v) for v in tri.find('c:p', ns).text.split()]
+        self.assertEqual(len(indices), int(tri.get('count')) * 3 * 2)
+        self.assertLess(max(indices[0::2]), n_vert)
+
+    def test_ribbon_spans_bone_to_child(self):
+        points, tris, owner = sa.ribbon_geometry(('mHindLimb1Left',), thickness=0.02)
+        start, end = sa.world_position('mHindLimb1Left'), sa.world_position('mHindLimb2Left')
+        mid_start = [sum(p[i] for p in points[:4]) / 4 for i in range(3)]
+        mid_end = [sum(p[i] for p in points[4:]) / 4 for i in range(3)]
+        for a, b in zip(mid_start, start):
+            self.assertAlmostEqual(a, b)
+        for a, b in zip(mid_end, end):
+            self.assertAlmostEqual(a, b)
+        self.assertEqual(len(tris), 12)
+        self.assertEqual(set(owner), {'mHindLimb1Left'})
+
+
 if __name__ == '__main__':
     unittest.main()

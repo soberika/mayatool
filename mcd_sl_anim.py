@@ -35,6 +35,7 @@ Facts from the viewer source that this module relies on:
 START (outside Maya):
     python mcd_sl_anim.py --sway out_dir     # writes test loops
     python mcd_sl_anim.py --dump file.anim   # prints a file's contents
+    python mcd_sl_anim.py --ribbons x.dae    # test ribbons as rigged Collada
 """
 
 import math
@@ -94,6 +95,27 @@ BONE_SETS = {
     'tail': ('mTail1', 'mTail2', 'mTail3'),
     'groin': ('mGroin',),
 }
+
+
+# mPelvis default position relative to the avatar root (avatar_skeleton.xml).
+PELVIS_POSITION = (0.0, 0.0, 1.067)
+
+
+def world_position(name):
+    """Default position of a cloth bone in avatar space (metres, SL axes)."""
+    if name == 'mPelvis':
+        return PELVIS_POSITION
+    if name not in CLOTH_BONES:
+        raise KeyError(name)
+    parent, local = CLOTH_BONES[name]
+    if parent == 'mPelvis':
+        base = PELVIS_POSITION
+    elif parent in CLOTH_BONES:
+        base = world_position(parent)
+    else:
+        raise KeyError('%s haengt an %s; dessen Position ist hier nicht hinterlegt.'
+                       % (name, parent))
+    return tuple(base[i] + local[i] for i in range(3))
 
 
 class AnimError(ValueError):
@@ -585,11 +607,217 @@ def build_test_ribbons(bones=BONE_SETS['hindlimbs'] + BONE_SETS['tail'],
     return ribbons
 
 
+# --- test ribbons as Collada (no Maya needed) -----------------------------------
+RIBBON_BONES = ('mHindLimb1Left', 'mHindLimb2Left', 'mHindLimb1Right',
+                'mHindLimb2Right', 'mTail1', 'mTail2', 'mTail3')
+
+# Quads of a bar with corners 0-3 at the start and 4-7 at the end, outward.
+_BOX_QUADS = ((0, 3, 2, 1), (4, 5, 6, 7), (0, 1, 5, 4), (1, 2, 6, 5), (2, 3, 7, 6),
+              (3, 0, 4, 7))
+
+
+def _ribbon_box(start, end, thickness):
+    """8 corners of a square bar from start to end (avatar space)."""
+    axis = tuple(end[i] - start[i] for i in range(3))
+    length = math.sqrt(sum(c * c for c in axis))
+    if length <= 1e-9:
+        raise AnimError('Band hat Laenge 0.')
+    d = tuple(c / length for c in axis)
+    helper = (0.0, 0.0, 1.0) if abs(d[2]) < 0.9 else (1.0, 0.0, 0.0)
+    u = (d[1] * helper[2] - d[2] * helper[1], d[2] * helper[0] - d[0] * helper[2],
+         d[0] * helper[1] - d[1] * helper[0])
+    un = math.sqrt(sum(c * c for c in u))
+    u = tuple(c / un for c in u)
+    v = (d[1] * u[2] - d[2] * u[1], d[2] * u[0] - d[0] * u[2], d[0] * u[1] - d[1] * u[0])
+    h = 0.5 * thickness
+    corners = []
+    for point in (start, end):
+        for su, sv in ((-1, -1), (1, -1), (1, 1), (-1, 1)):
+            corners.append(tuple(point[i] + su * h * u[i] + sv * h * v[i] for i in range(3)))
+    return corners
+
+
+def ribbon_geometry(bones=RIBBON_BONES, thickness=0.03):
+    """Vertices (avatar space), triangles and owning joint per vertex.
+
+    Each bone gets one bar from its default position to its child's (the
+    next bone of its chain), 100 % weighted to that bone.
+    """
+    points, tris, owner = [], [], []
+    for bone in bones:
+        children = [n for n, (parent, _) in CLOTH_BONES.items() if parent == bone]
+        if not children:
+            raise AnimError('%s hat kein Kind-Bone fuer die Bandlaenge.' % bone)
+        start, end = world_position(bone), world_position(children[0])
+        base = len(points)
+        points.extend(_ribbon_box(start, end, thickness))
+        owner.extend([bone] * 8)
+        for a, b, c, d in _BOX_QUADS:
+            tris.append((base + a, base + b, base + c))
+            tris.append((base + a, base + c, base + d))
+    return points, tris, owner
+
+
+def _fmt(values):
+    return ' '.join('%.6g' % v for v in values)
+
+
+_DAE_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
+<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">
+  <asset>
+    <contributor><authoring_tool>mcd. SL Anim {version} test ribbons</authoring_tool></contributor>
+    <unit name="meter" meter="1"/>
+    <up_axis>Z_UP</up_axis>
+  </asset>
+  <library_effects>
+    <effect id="ribbon-effect">
+      <profile_COMMON>
+        <technique sid="common">
+          <lambert><diffuse><color>0.9 0.2 0.5 1</color></diffuse></lambert>
+        </technique>
+      </profile_COMMON>
+    </effect>
+  </library_effects>
+  <library_materials>
+    <material id="ribbon-material" name="ribbon"><instance_effect url="#ribbon-effect"/></material>
+  </library_materials>
+  <library_geometries>
+    <geometry id="ribbons-mesh" name="mcd_test_ribbons">
+      <mesh>
+        <source id="ribbons-positions">
+          <float_array id="ribbons-positions-array" count="{np}">{points}</float_array>
+          <technique_common>
+            <accessor source="#ribbons-positions-array" count="{nv}" stride="3">
+              <param name="X" type="float"/><param name="Y" type="float"/><param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="ribbons-normals">
+          <float_array id="ribbons-normals-array" count="{nn}">{normals}</float_array>
+          <technique_common>
+            <accessor source="#ribbons-normals-array" count="{nt}" stride="3">
+              <param name="X" type="float"/><param name="Y" type="float"/><param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="ribbons-vertices"><input semantic="POSITION" source="#ribbons-positions"/></vertices>
+        <triangles material="ribbon-material" count="{nt}">
+          <input semantic="VERTEX" source="#ribbons-vertices" offset="0"/>
+          <input semantic="NORMAL" source="#ribbons-normals" offset="1"/>
+          <p>{p}</p>
+        </triangles>
+      </mesh>
+    </geometry>
+  </library_geometries>
+  <library_controllers>
+    <controller id="ribbons-skin" name="mcd_test_ribbons_skin">
+      <skin source="#ribbons-mesh">
+        <bind_shape_matrix>1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1</bind_shape_matrix>
+        <source id="ribbons-joints">
+          <Name_array id="ribbons-joints-array" count="{nj}">{joints}</Name_array>
+          <technique_common>
+            <accessor source="#ribbons-joints-array" count="{nj}" stride="1">
+              <param name="JOINT" type="name"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="ribbons-bind-poses">
+          <float_array id="ribbons-bind-poses-array" count="{nb}">{inv_bind}</float_array>
+          <technique_common>
+            <accessor source="#ribbons-bind-poses-array" count="{nj}" stride="16">
+              <param name="TRANSFORM" type="float4x4"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="ribbons-weights">
+          <float_array id="ribbons-weights-array" count="1">1</float_array>
+          <technique_common>
+            <accessor source="#ribbons-weights-array" count="1" stride="1">
+              <param name="WEIGHT" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <joints>
+          <input semantic="JOINT" source="#ribbons-joints"/>
+          <input semantic="INV_BIND_MATRIX" source="#ribbons-bind-poses"/>
+        </joints>
+        <vertex_weights count="{nv}">
+          <input semantic="JOINT" source="#ribbons-joints" offset="0"/>
+          <input semantic="WEIGHT" source="#ribbons-weights" offset="1"/>
+          <vcount>{vcount}</vcount>
+          <v>{vw}</v>
+        </vertex_weights>
+      </skin>
+    </controller>
+  </library_controllers>
+  <library_visual_scenes>
+    <visual_scene id="scene" name="scene">
+      <node id="mcd_test_ribbons" name="mcd_test_ribbons" type="NODE">
+        <instance_controller url="#ribbons-skin">
+          <bind_material>
+            <technique_common>
+              <instance_material symbol="ribbon-material" target="#ribbon-material"/>
+            </technique_common>
+          </bind_material>
+        </instance_controller>
+      </node>
+    </visual_scene>
+  </library_visual_scenes>
+  <scene><instance_visual_scene url="#scene"/></scene>
+</COLLADA>
+"""
+
+
+def ribbons_dae(bones=RIBBON_BONES, thickness=0.03):
+    """Collada text for the stage 0 test ribbons, rigged to cloth bones only.
+
+    Units metres, Z up, X forward (SL avatar space). Inverse bind matrices
+    are the inverse default joint positions, the bind shape is identity.
+    Contains no skeleton nodes, so the uploader cannot apply joint positions.
+    NOT YET VERIFIED WITH THE SL UPLOADER.
+    """
+    points, tris, owner = ribbon_geometry(bones, thickness)
+    joints = list(bones)
+    normals = []
+    for a, b, c in tris:
+        pa, pb, pc = points[a], points[b], points[c]
+        e1 = tuple(pb[i] - pa[i] for i in range(3))
+        e2 = tuple(pc[i] - pa[i] for i in range(3))
+        n = (e1[1] * e2[2] - e1[2] * e2[1], e1[2] * e2[0] - e1[0] * e2[2],
+             e1[0] * e2[1] - e1[1] * e2[0])
+        length = math.sqrt(sum(x * x for x in n)) or 1.0
+        normals.append(tuple(x / length for x in n))
+    p_index = []
+    for t, tri in enumerate(tris):
+        for v in tri:
+            p_index.extend((v, t))
+    inv_bind = []
+    for name in joints:
+        x, y, z = world_position(name)
+        inv_bind.extend((1, 0, 0, -x, 0, 1, 0, -y, 0, 0, 1, -z, 0, 0, 0, 1))
+    vw = []
+    for vertex_owner in owner:
+        vw.extend((joints.index(vertex_owner), 0))
+    flat_points = [c for p in points for c in p]
+    flat_normals = [c for n in normals for c in n]
+    return _DAE_TEMPLATE.format(
+        version=VERSION, np=len(flat_points), nv=len(points), points=_fmt(flat_points),
+        nn=len(flat_normals), nt=len(tris), normals=_fmt(flat_normals),
+        p=' '.join(str(i) for i in p_index), nj=len(joints), joints=' '.join(joints),
+        nb=len(inv_bind), inv_bind=_fmt(inv_bind), vcount=' '.join('1' for _ in points),
+        vw=' '.join(str(i) for i in vw))
+
+
 def _main(argv):
     import os
     if len(argv) >= 2 and argv[0] == '--dump':
         with open(argv[1], 'rb') as handle:
             print(describe(read_anim(handle.read())))
+        return 0
+    if len(argv) >= 2 and argv[0] == '--ribbons':
+        with open(argv[1], 'w') as handle:
+            handle.write(ribbons_dae())
+        print('%s geschrieben' % argv[1])
         return 0
     if len(argv) >= 2 and argv[0] == '--sway':
         folder = argv[1]
