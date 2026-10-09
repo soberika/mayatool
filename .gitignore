@@ -1,3 +1,5 @@
 __pycache__/
 *.pyc
 stufe0_*.zip
+mcd_fit_*.json.gz
+*.json.gz
