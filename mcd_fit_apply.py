@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""mcd. Fit Apply 0.1 — puts a fit result onto a COPY of the dress in Maya.
+"""mcd. Fit Apply 0.2 — puts a fit result onto a COPY of the dress in Maya.
 
 STAGE 1 (docs/konzept_kleidung_und_bewegung.md). Counterpart of
 mcd_fit_export: the solver returns a result file (.json.gz) with new skin
@@ -21,7 +21,7 @@ import gzip
 import json
 import traceback
 
-VERSION = '0.1'
+VERSION = '0.2'
 WINDOW = 'mcdFitApplyWindow'
 
 
