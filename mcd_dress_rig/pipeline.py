@@ -424,22 +424,31 @@ def transfer(part, base, base_rows, params, fallback, report):
 
 
 def hold_strip(part, rows, info, params, report):
-    """'Streifen gerade halten': selected vertices of this part follow the pelvis together."""
-    chosen = (params.get('strip') or {}).get(part.transform)
-    if not chosen or params.get('strip_hold', 0.0) <= 0.0:
+    """'Streifen gerade halten': each stored strip of this part moves as one piece.
+
+    Every click on 'merken' is one strip with its own common row; the targets
+    are taken from the weights before any strip is changed, so the order of
+    the strips does not matter.
+    """
+    groups = (params.get('strip') or {}).get(part.transform)
+    if not groups or params.get('strip_hold', 0.0) <= 0.0:
         return rows
-    chosen = [v for v in chosen if 0 <= v < len(rows)]
     m_index, cv_index = info['roles']['pelvis']
-    if params.get('strip_mode') == 'pelvis':
-        pelvis = cv_index if (params['skirt_on_cv'] and cv_index is not None) else m_index
-        target, mode = {pelvis: 1.0}, 'am Becken'
-    else:
-        # Mean of the strip's own weights: it still follows the leg, but as one piece.
-        target, mode = core.average_row(rows, chosen, params['maximum'], m_index), 'als Ganzes (Mittelwert)'
-    rows, changed = core.hold_selection(rows, part.adjacency, chosen, target, params['strip_hold'],
-                                        params.get('strip_rings', 3), params['maximum'], m_index)
-    report.add('  Streifen gerade %s: %d Vertices gewaehlt, %d angepasst (Staerke %.2f, Uebergang %d Ringe)',
-               mode, len(chosen), changed, params['strip_hold'], params.get('strip_rings', 3))
+    pelvis = cv_index if (params['skirt_on_cv'] and cv_index is not None) else m_index
+    original = rows
+    for number, chosen in enumerate(groups, 1):
+        chosen = [v for v in chosen if 0 <= v < len(rows)]
+        if not chosen:
+            continue
+        if params.get('strip_mode') == 'pelvis':
+            target, mode = {pelvis: 1.0}, 'am Becken'
+        else:
+            # Mean of the strip's own weights: it still follows the leg, but as one piece.
+            target, mode = core.average_row(original, chosen, params['maximum'], m_index), 'als Ganzes'
+        rows, changed = core.hold_selection(rows, part.adjacency, chosen, target, params['strip_hold'],
+                                            params.get('strip_rings', 3), params['maximum'], m_index)
+        report.add('  Streifen %d gerade (%s): %d Vertices gewaehlt, %d angepasst (Staerke %.2f, %d Ringe)',
+                   number, mode, len(chosen), changed, params['strip_hold'], params.get('strip_rings', 3))
     return rows
 
 

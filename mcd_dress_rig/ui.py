@@ -28,7 +28,7 @@ class DressRigWindow(object):
         self.cmds = cmds
         self.version = version
         self.c = {}
-        self.strip = {}   # part transform -> vertex indices to keep straight
+        self.strip = {}   # part transform -> list of strips (vertex index sets), one per 'merken'
         self._build()
 
     # ----------------------------------------------------------------- UI
@@ -174,7 +174,7 @@ class DressRigWindow(object):
             raise RigError('Streifen liegt nicht auf einem Kleidteil der Liste: %s. Erst das Kleidteil '
                            'hinzufuegen, dann den Streifen dort auswaehlen.' % ', '.join(unknown))
         for transform, ids in found.items():
-            self.strip.setdefault(transform, set()).update(ids)
+            self.strip.setdefault(transform, []).append(ids)
         self._show_strip()
 
     def _clear_strip(self):
@@ -182,7 +182,9 @@ class DressRigWindow(object):
         self._show_strip()
 
     def _show_strip(self):
-        text = ', '.join('%s: %d Vertices' % (scene.short(t), len(ids)) for t, ids in self.strip.items())
+        text = ', '.join('%s: %d Streifen (%s Vertices)' % (scene.short(t), len(groups),
+                                                            ' + '.join(str(len(g)) for g in groups))
+                         for t, groups in self.strip.items())
         self.cmds.text(self.c['strip_info'], edit=True, label='Streifen: ' + text if text else 'Kein Streifen gemerkt.')
 
     def _add_parts(self):
@@ -226,7 +228,7 @@ class DressRigWindow(object):
         params['transition'] = cmds.floatFieldGrp(self.c['transition'], query=True, value1=True)
         params['layer_distance'] = cmds.floatFieldGrp(self.c['layer_distance'], query=True, value1=True)
         params['leg_contact'] = cmds.floatFieldGrp(self.c['leg_contact'], query=True, value1=True)
-        params['strip'] = {t: sorted(ids) for t, ids in self.strip.items()}
+        params['strip'] = {t: [sorted(g) for g in groups] for t, groups in self.strip.items()}
         params['strip_hold'] = cmds.floatSliderGrp(self.c['strip_hold'], query=True, value=True)
         params['strip_mode'] = ('pelvis' if cmds.optionMenu(self.c['strip_mode'], query=True, select=True) == 2
                                 else 'average')
