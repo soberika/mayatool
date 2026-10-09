@@ -3,3 +3,6 @@ __pycache__/
 stufe0_*.zip
 mcd_fit_*.json.gz
 *.json.gz
+/vergleich.png
+/ruheform.png
+mcd_fit_ergebnis_*.json.gz
