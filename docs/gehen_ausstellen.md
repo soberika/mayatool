@@ -42,3 +42,15 @@
 - 50 %: 43 → 83 (schlechter; diese Phase bräuchte „nach vorn“)
 
 **Ruheform:** Nur Kanten unter 1 mm Länge ändern sich relativ stark, absolut höchstens 1,2 mm.
+
+## Rückmeldung SL (2,5 cm): besser, aber noch nicht genug. Stärkere Stufen
+
+Trainiert jetzt auch auf großen Schritten (Faktor 1,25), Bereich bis Knie + 20 cm.
+
+| Variante | Wade normal | Wade große Schritte | Rückenlinie außen | Dehnung in Ruhe |
+|---|---|---|---|---|
+| 2,5 cm | −46 % | −12 % | bis 2,0 cm (nur ganz unten am Saum) | fast keine |
+| **4 cm** | **−65 %** | **−31 %** | bis 3,5 cm | Streifen an der Seitenkante ca. 20–30 % gedehnt (p99 11 %) |
+| 5,5 cm | −73 % | −51 % | bis 4,5 cm | wie 4 cm, etwas stärker (p99 15 %) |
+
+Die Breite von hinten bleibt bei allen Varianten unverändert.
