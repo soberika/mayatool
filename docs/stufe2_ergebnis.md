@@ -45,3 +45,32 @@ Etwa 5 500 Vertices haben Stoffgewicht, höchstens 34 % pro Vertex.
 - **Stehen ohne Animation** ist unverändert gut, weil die Stoffpose „Stehen“ der Ruhelage entspricht.
 - **Nur Verschiebungen, noch keine Rotationen** der Stoff-Bones. Größere Saum-Effekte, etwa ein bewusst ausschwingender Schlitz, kommen mit Rotationen dazu.
 - **Gemessen ist nur am erzeugten Gangzyklus.** Fremde AO-Gänge folgen beim Test in SL.
+
+---
+
+## Nachtrag: In SL getestet – Saum gerissen. Ursache und Korrektur
+
+**Rückmeldung aus SL:** Es clippt weiterhin, und der Saum ist unten kaputt (zackige, aufgerissene Kanten).
+
+**Ursache (Fehler im Solver, nicht in SL):**
+1. **4-Einfluss-Grenze.** Kam ein Stoff-Bone dazu, musste ein anderer Einfluss raus. Bei benachbarten Vertices war das mal der eine, mal der andere Bein-Bone bzw. das Collision Volume.
+2. **Rauschen.** Die Gewichte wurden pro Vertex unabhängig gelöst. Bein-Collision-Volumes sind stark skaliert, deshalb ergeben kleine Gewichtsunterschiede große Verschiebungen.
+3. **Falsches Prüfmaß.** Ich hatte nur das 95. Perzentil der Dehnung geprüft. Auf einer 1-mm-Kante lagen aber bis zu 1,6 cm zwischen den Nachbarn.
+
+**Neues Prüfmaß:** Kanten, die in einer Pose mindestens 3 mm länger sind als mit 0.5.3 („Risse“).
+
+| Variante | Sitzen: Clipping / Risse | Bein über Bein | Gehen 70 % | Schritt L 40 |
+|---|---|---|---|---|
+| 0.5.3 | 5,9 % / 0 | 5,7 % / 0 | 0,9 % / 0 | 1,3 % / 0 |
+| Stufe 1 (getestete Version) | 3,2 % / 324 | 3,6 % / 319 | 0,7 % / 106 | 0,4 % / 154 |
+| **0.5.3-Gewichte + glatte Form bis 6 mm** | **4,1 % / 1** | **4,1 % / 1** | **0,7 % / 1** | **0,4 % / 1** |
+| 0.5.3-Gewichte + Form bis 10 mm | 3,5 % / 79 | 3,4 % / 77 | 0,6 % / 133 | 0,3 % / 125 |
+
+**Folgerungen:**
+- Fast der ganze Gewinn von Stufe 1 kam von der glatten Formänderung. Die Gewichtsänderungen bringen beim Sitzen nur etwas mehr, reißen aber den Stoff auf.
+- **Saubere Empfehlung:** 0.5.3-Gewichte unverändert, Ruheform glatt bis 6 mm weiter (`mcd_kleid_form6mm.json.gz`).
+- **Stufe 2 bringt bei diesem Kleid nichts.** Weder die Variante mit freien Slots noch die mit glattem Stoffanteil liefert einen sauberen Gewinn. Starre, beckenfeste Verschiebungen bringen ohne Pro-Vertex-Freiheit kaum etwas, und mit dieser Freiheit reißt das Mesh.
+- **Wadenclipping beim Gehen (ca. 6–7 % im Unterschenkelbereich) bleibt ungelöst.** Realistische Optionen:
+  - Entwurf ändern: hinterer Gehschlitz oder etwas mehr Saumweite hinten. Das ist Konzept K5.
+  - Stoff-Bones, die mit der Wade mitgehen, statt beckenfester. Dafür bräuchte es Rotationen und andere Bone-Ketten.
+- Der Code für Stufe 2 bleibt als Experiment im Repo (`mcd_cloth_layer.py`). Das Ergebnis wird nicht empfohlen.

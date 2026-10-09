@@ -339,7 +339,7 @@ def candidate_influences(dress, body, rig, max_candidates=6):
 def fit_weights(rig, body, dress, poses, margin=0.3, keep=0.6, smooth=0.3,
                 passes=3, max_influences=4, offset_limit=0.0, rest_weight=3.0,
                 progress=print, worlds=None, init_weights=None, init_offsets=None,
-                candidates=None, reference=None):
+                candidates=None, reference=None, editable=None):
     """Fit weights on the training poses. Returns (weights, offsets, history).
 
     margin: wanted clearance outside the body (scene units; 0.3 = 3 mm in cm).
@@ -351,7 +351,8 @@ def fit_weights(rig, body, dress, poses, margin=0.3, keep=0.6, smooth=0.3,
     worlds: optional [(name, world matrices)] used instead of 'poses' (e.g. with
     cloth bones moved per state). init_weights/init_offsets: start values.
     candidates: per-vertex influence lists. reference: weights to stay close to
-    (default: the start weights).
+    (default: the start weights). editable: boolean mask; other vertices keep
+    their weights.
     """
     if worlds is None:
         worlds = [(name, rig.pose(rot)) for name, kind, rot in poses if kind == 'train']
@@ -379,6 +380,8 @@ def fit_weights(rig, body, dress, poses, margin=0.3, keep=0.6, smooth=0.3,
             active |= push > 1e-4
             targets.append(p + normal * push[:, None])
             posed.append(world)
+        if editable is not None:
+            active &= editable
         history.append({'pass': it, 'active_vertices': int(active.sum())})
         progress('Durchgang %d: %d Vertices clippen in Trainingsposen' % (it + 1, active.sum()))
         idx = np.nonzero(active)[0]
