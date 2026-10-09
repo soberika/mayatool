@@ -519,3 +519,42 @@ def save_result(path, data, dress, weights, offsets, settings, report):
     }
     with gzip.open(path, 'wt', encoding='utf-8') as handle:
         json.dump(payload, handle, separators=(',', ':'))
+
+
+# --- local flare: give a walking calf room by widening only the lower back skirt ----
+def local_flare(rig, body, dress, weights, poses, limit=2.5, margin=0.4, passes=8,
+                above_knee=15.0, fade=30, base_offsets=None, front_margin=2.0):
+    """Rest-shape offsets ONLY on the skirt below (knee + above_knee) and behind
+    the body's side line, pushing backwards (-forward) by what the calves need
+    in the given (walking) poses. Weights are NOT changed, so nothing can tear
+    from weight noise; the offset field is smoothed and fades out at the
+    region border. Returns pre-skin offsets (same space as Skin.base)."""
+    up, fwd = rig.axes['up'], rig.axes['forward']
+    rest = dress.deform(rig.rest, weights)
+    y = rest @ up
+    knee_y = rig.position('mKneeLeft') @ up
+    centre_f = rig.position('mPelvis') @ fwd
+    region = (y < knee_y + above_knee) & ((rest @ fwd) < centre_f + front_margin)
+    worlds = [rig.pose(rot) for rot in poses]
+    surfaces = [BodySurface(body.deform(w), body.tris) for w in worlds]
+    blend = np.einsum('vj,jab->vab', weights,
+                      np.einsum('jab,jbc->jac', dress.bind, rig.rest[dress.joint]))
+    inv = np.linalg.inv(blend[:, :3, :3])
+    offsets = np.zeros((dress.mesh.count, 3)) if base_offsets is None else base_offsets.copy()
+    amount = np.zeros(dress.mesh.count)
+    for _ in range(passes):
+        need = np.zeros(dress.mesh.count)
+        for world, surface in zip(worlds, surfaces):
+            p = dress.deform(world, weights, offsets)
+            signed, _, _ = surface.signed_distance(p)
+            need = np.maximum(need, margin - signed)
+        extra = np.where(region, np.clip(need, 0.0, limit), 0.0)
+        extra = smooth_field(extra, dress.edges, iterations=25)
+        amount = np.clip(amount + extra, 0.0, limit)
+        # Fade toward the region border, then smooth the whole field once more.
+        for _ in range(fade):
+            amount = np.where(region, smooth_field(amount, dress.edges, iterations=1), 0.0)
+        world_offset = -fwd[None, :] * amount[:, None]
+        local = np.einsum('va,vab->vb', world_offset, inv)
+        offsets = (np.zeros_like(local) if base_offsets is None else base_offsets) + local
+    return offsets, amount, region
