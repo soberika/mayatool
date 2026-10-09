@@ -86,3 +86,33 @@ Das Design-Referenzbild zeigt einen Rock, der von der Hüfte **gerade** fällt, 
 | **+ Säule 45 cm + gerade Rückenlinie** | **233** | **511** | **944** |
 
 Dehnung in Ruhe p99 28 %. Die Silhouette folgt jetzt der Säulenform des Referenzbildes.
+
+## Referenzbild vermessen: Es ist eine weiche A-Linie, keine Säule
+
+Gemessen wurden die Breitenprofile der Vorder- und Rückansicht im Referenzbild (Pixel, Stoff per Farbe getrennt). Bezugswert ist die Breite am Oberschenkel, knapp unter den Händen.
+
+| Höhe (Oberschenkel 0,25 → Saum 0,85) | 0,25 | 0,50 | 0,70 | 0,85 |
+|---|---|---|---|---|
+| Referenz vorn | 1,00 | 1,08 | 1,17 | 1,25 |
+| Referenz hinten | 1,00 | 1,09 | 1,16 | 1,21 |
+| 0.5.3 | 1,00 | ≈0,99 | ≈0,95 | ≈0,95 (wird enger) |
+| Säule (letzte Variante) | 1,00 | ≈1,00 | ≈1,02 | 1,04 |
+| **A-Linie Saum 53 cm ab 86 cm** | 1,00 | ≈1,05 | ≈1,11 | 1,16 |
+
+Das Referenzbild ist ein 2D-Rendering mit Perspektive. Die Werte sind deshalb Näherungen von etwa ±3 %.
+
+**Wadenclipping** (Vertices über 13 Gangphasen, Schritte ×1,0 / ×1,25 / ×1,4):
+
+| Variante | ×1,0 | ×1,25 | ×1,4 |
+|---|---|---|---|
+| 0.5.3 | 2113 | 2900 | 3151 |
+| Säule | 233 | 511 | 944 |
+| **A-Linie** | **30** | **328** | **716** |
+
+Dehnung in Ruhe: p99 36 %.
+
+**Was SL-Kreatoren zu langen Röcken schreiben** (Forenrecherche):
+- Clipping zwischen den Beinen gilt als bekanntes Problem.
+- Die Mittelzonen vorn und hinten zwischen den Beinen werden stark gedehnt. Empfohlen werden dort mehr Geometrie und weich abgestufte Gewichte (Mitte 0,5/0,5, nach außen abgestuft).
+- Manche Kreatoren riggen den Rock stärker auf das Becken.
+- Als Notlösungen werden eine Alpha-Ebene oder eine passende Unterhose bzw. ein Unterrock genannt.
