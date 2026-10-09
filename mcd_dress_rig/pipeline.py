@@ -51,7 +51,8 @@ DEFAULTS = dict(core.SKIRT_DEFAULTS, skirt=True, start_offset=None, transition=N
                 smooth_passes=3, maximum=4, hide_original=False, keep_all_influences=False,
                 skirt_on_cv=True, layer_distance=None, leg_contact=None, contact_strength=0.9,
                 sweep_sit=True, sweep_side=False, contact_smooth=8, sweep_scale=0.5, widen=0.0, widen_back=0.0,
-                upper_smooth=0, strip=None, strip_hold=1.0, strip_rings=3, strip_mode='average')
+                upper_smooth=0, strip=None, strip_hold=1.0, strip_rings=3, strip_mode='average',
+                strip_leg=0.8)
 SUFFIX = '_mcdRig'
 TOLERANCE_SUM = 1e-4
 TOLERANCE_SHAPE = 1e-3   # scene units (cm)
@@ -442,6 +443,15 @@ def hold_strip(part, rows, info, params, report):
             continue
         if params.get('strip_mode') == 'pelvis':
             target, mode = {pelvis: 1.0}, 'am Becken'
+        elif params.get('strip_mode') == 'leg':
+            # Thigh of the side the strip lies on; the whole strip turns with it.
+            lateral = sum(core.skirt_frame_coords(part.points[v], info['frame'])[0] for v in chosen)
+            side = 'thigh_l' if lateral >= 0.0 else 'thigh_r'
+            t_m, t_cv = info['roles'][side]
+            thigh = t_cv if (params['skirt_on_cv'] and t_cv is not None) else t_m
+            share = core.clamp(params.get('strip_leg', 0.8))
+            target = core.normalize_row({thigh: share, pelvis: 1.0 - share}, params['maximum'], m_index)
+            mode = 'mit Bein %s %.0f %%' % ('links' if side == 'thigh_l' else 'rechts', 100 * share)
         else:
             # Mean of the strip's own weights: it still follows the leg, but as one piece.
             target, mode = core.average_row(original, chosen, params['maximum'], m_index), 'als Ganzes'
