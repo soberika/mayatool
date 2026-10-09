@@ -82,7 +82,10 @@ class DressRigWindow(object):
         cmds.button(label='Streifen leeren', command=lambda *_: self._safe(self._clear_strip))
         cmds.setParent('..')
         self.c['strip_info'] = cmds.text(label='Kein Streifen gemerkt.', align='left')
-        self.c['strip_hold'] = cmds.floatSliderGrp(label='Streifen am Becken', field=True, minValue=0.0,
+        self.c['strip_mode'] = cmds.optionMenu(label='Streifen folgt')
+        cmds.menuItem(label='als Ganzes (Mittelwert, z. B. Schlitzkante)')
+        cmds.menuItem(label='dem Becken (ganz ruhig, z. B. hintere Mitte)')
+        self.c['strip_hold'] = cmds.floatSliderGrp(label='Streifen gerade (Staerke)', field=True, minValue=0.0,
                                                    maxValue=1.0, value=1.0, precision=2,
                                                    columnWidth3=(150, 55, 260))
         self.c['strip_rings'] = cmds.intSliderGrp(label='Streifen Uebergang (Ringe)', field=True, minValue=0,
@@ -225,6 +228,8 @@ class DressRigWindow(object):
         params['leg_contact'] = cmds.floatFieldGrp(self.c['leg_contact'], query=True, value1=True)
         params['strip'] = {t: sorted(ids) for t, ids in self.strip.items()}
         params['strip_hold'] = cmds.floatSliderGrp(self.c['strip_hold'], query=True, value=True)
+        params['strip_mode'] = ('pelvis' if cmds.optionMenu(self.c['strip_mode'], query=True, select=True) == 2
+                                else 'average')
         params['strip_rings'] = cmds.intSliderGrp(self.c['strip_rings'], query=True, value=True)
         params['upper_smooth'] = cmds.intSliderGrp(self.c['upper_smooth'], query=True, value=True)
         params['widen'] = cmds.floatFieldGrp(self.c['widen'], query=True, value1=True)

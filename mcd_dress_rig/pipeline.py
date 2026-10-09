@@ -51,7 +51,7 @@ DEFAULTS = dict(core.SKIRT_DEFAULTS, skirt=True, start_offset=None, transition=N
                 smooth_passes=3, maximum=4, hide_original=False, keep_all_influences=False,
                 skirt_on_cv=True, layer_distance=None, leg_contact=None, contact_strength=0.9,
                 sweep_sit=True, sweep_side=False, contact_smooth=8, sweep_scale=0.5, widen=0.0, widen_back=0.0,
-                upper_smooth=0, strip=None, strip_hold=1.0, strip_rings=3)
+                upper_smooth=0, strip=None, strip_hold=1.0, strip_rings=3, strip_mode='average')
 SUFFIX = '_mcdRig'
 TOLERANCE_SUM = 1e-4
 TOLERANCE_SHAPE = 1e-3   # scene units (cm)
@@ -430,11 +430,16 @@ def hold_strip(part, rows, info, params, report):
         return rows
     chosen = [v for v in chosen if 0 <= v < len(rows)]
     m_index, cv_index = info['roles']['pelvis']
-    pelvis = cv_index if (params['skirt_on_cv'] and cv_index is not None) else m_index
-    rows, changed = core.hold_selection(rows, part.adjacency, chosen, {pelvis: 1.0}, params['strip_hold'],
+    if params.get('strip_mode') == 'pelvis':
+        pelvis = cv_index if (params['skirt_on_cv'] and cv_index is not None) else m_index
+        target, mode = {pelvis: 1.0}, 'am Becken'
+    else:
+        # Mean of the strip's own weights: it still follows the leg, but as one piece.
+        target, mode = core.average_row(rows, chosen, params['maximum'], m_index), 'als Ganzes (Mittelwert)'
+    rows, changed = core.hold_selection(rows, part.adjacency, chosen, target, params['strip_hold'],
                                         params.get('strip_rings', 3), params['maximum'], m_index)
-    report.add('  Streifen gerade: %d Vertices gewaehlt, %d angepasst (am Becken %.2f, Uebergang %d Ringe)',
-               len(chosen), changed, params['strip_hold'], params.get('strip_rings', 3))
+    report.add('  Streifen gerade %s: %d Vertices gewaehlt, %d angepasst (Staerke %.2f, Uebergang %d Ringe)',
+               mode, len(chosen), changed, params['strip_hold'], params.get('strip_rings', 3))
     return rows
 
 

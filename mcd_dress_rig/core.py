@@ -375,6 +375,15 @@ def smooth_within_sets(rows, adjacency, factors, passes, strength=0.5):
     return rows
 
 
+def average_row(rows, indices, maximum, fallback):
+    """One common row for a selection: the mean of its rows, capped to `maximum`."""
+    total = {}
+    for v in indices:
+        for i, w in rows[v].items():
+            total[i] = total.get(i, 0.0) + w
+    return normalize_row(total, maximum, fallback=fallback)
+
+
 def hold_selection(rows, adjacency, selected, target, strength, rings, maximum, fallback):
     """Pull selected vertices to one common row (e.g. pelvis only).
 
