@@ -265,8 +265,57 @@ def _pick_meshes():
     if len(picked) != 2:
         raise ValueError('Bitte genau zwei Meshes auswaehlen: den Body und das Kleid '
                          '(gewaehlt: %d).' % len(picked))
+    picked = [_skinned_version(node) for node in picked]
     picked.sort(key=_height, reverse=True)
     return picked[0], picked[1]
+
+
+def _has_skin(node):
+    cmds, _, _ = _maya()
+    shapes = cmds.listRelatives(node, shapes=True, noIntermediate=True, fullPath=True,
+                               type='mesh') or []
+    return bool(shapes) and bool(cmds.ls(cmds.listHistory(shapes[0], pruneDagObjects=True)
+                                         or [], type='skinCluster'))
+
+
+def _autorig_copies(node):
+    """Skinned meshes named like Dress Auto Rig 0.4's output for this mesh."""
+    cmds, _, _ = _maya()
+    base = node.rsplit('|', 1)[-1].rsplit(':', 1)[-1]
+    found = []
+    for pattern in ('%s_autoRig*' % base, '*:%s_autoRig*' % base):
+        for match in cmds.ls(pattern, long=True, type='transform') or []:
+            if match not in found and _has_skin(match):
+                found.append(match)
+    return found
+
+
+def _skinned_version(node):
+    """The mesh itself if skinned, else its unique _autoRig copy (after asking)."""
+    cmds, _, _ = _maya()
+    if _has_skin(node):
+        return node
+    short = node.rsplit('|', 1)[-1]
+    copies = _autorig_copies(node)
+    if len(copies) == 1:
+        answer = cmds.confirmDialog(
+            title='mcd. Fit Export',
+            message='"%s" ist nicht geriggt (das ist das Original).\n\n'
+                    'Gefunden: die geriggte Kopie "%s".\nDiese stattdessen nehmen?'
+                    % (short, copies[0].rsplit('|', 1)[-1]),
+            button=['Ja, Kopie nehmen', 'Abbrechen'], defaultButton='Ja, Kopie nehmen',
+            cancelButton='Abbrechen', dismissString='Abbrechen')
+        if answer != 'Abbrechen':
+            return copies[0]
+        raise ValueError('Abgebrochen.')
+    if copies:
+        raise ValueError('"%s" ist nicht geriggt. Es gibt mehrere geriggte Kopien:\n%s\n\n'
+                         'Bitte die richtige Kopie direkt auswaehlen.'
+                         % (short, '\n'.join(c.rsplit('|', 1)[-1] for c in copies)))
+    raise ValueError('"%s" ist nicht geriggt (kein skinCluster).\n\n'
+                     'Bitte zuerst mit Dress Auto Rig 0.4 riggen. Das erzeugt eine Kopie '
+                     'mit "_autoRig" am Ende. Dann Body + diese Kopie auswaehlen und erneut '
+                     'exportieren.' % short)
 
 
 def run_export():
