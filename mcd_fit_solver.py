@@ -500,6 +500,50 @@ def _rest_offsets(rig, body, dress, weights, train, surfaces, margin, limit, off
     return np.einsum('va,vab->vb', world_offset, inv)
 
 
+def region_clearance(rig, body, dress, weights, worlds, region, clearance=0.8, limit=1.5,
+                     passes=6, fade=20, base_offsets=None):
+    """Rest-shape offsets inside 'region' (bool mask) so the garment keeps
+    'clearance' cm from the body in all posed 'worlds' (world matrices, so
+    callers can also move collision volumes, e.g. breast physics). Pushes along
+    the body normals, accumulates over passes, fades out at the region border.
+    Weights are not changed."""
+    rest = dress.deform(rig.rest, weights)
+    _, _, normals = BodySurface(body.deform(rig.rest), body.tris).signed_distance(rest, k=8)
+    surfaces = [BodySurface(body.deform(w), body.tris) for w in worlds]
+    blend = np.einsum('vj,jab->vab', weights,
+                      np.einsum('jab,jbc->jac', dress.bind, rig.rest[dress.joint]))
+    inv = np.linalg.inv(blend[:, :3, :3])
+    offsets = np.zeros((dress.mesh.count, 3)) if base_offsets is None else base_offsets.copy()
+    amount = np.zeros(dress.mesh.count)
+    for _ in range(passes):
+        need = np.zeros(dress.mesh.count)
+        for world, surface in zip(worlds, surfaces):
+            signed, _, _ = surface.signed_distance(dress.deform(world, weights, offsets))
+            need = np.maximum(need, clearance - signed)
+        extra = np.where(region, np.clip(need, 0.0, limit), 0.0)
+        amount = np.clip(amount + smooth_field(extra, dress.edges, iterations=20), 0.0, limit)
+        for _ in range(fade):
+            amount = np.where(region, smooth_field(amount, dress.edges, iterations=1), 0.0)
+        local = np.einsum('va,vab->vb', normals * amount[:, None], inv)
+        offsets = (np.zeros_like(local) if base_offsets is None else base_offsets) + local
+    return offsets, amount
+
+
+def breast_bounce_worlds(rig, amplitude=1.2):
+    """Rest pose with LEFT_PEC/RIGHT_PEC moved like SL breast physics does
+    (up, down, out, forward). Garments weighted mostly to CHEST stay behind."""
+    up, fwd, left = rig.axes['up'], rig.axes['forward'], rig.axes['left']
+    worlds = [rig.rest.copy()]
+    # (direction, mirrored): sideways moves go outward on both sides.
+    for move, mirrored in ((up, False), (-up, False), (fwd, False), (left, True), (-left, True)):
+        w = rig.rest.copy()
+        for name, side in (('LEFT_PEC', 1.0), ('RIGHT_PEC', -1.0)):
+            if name in rig.index:
+                w[rig.index[name], 3, :3] += amplitude * (move * side if mirrored else move)
+        worlds.append(w)
+    return worlds
+
+
 # --- result file for mcd_fit_apply (Maya) ------------------------------------------------
 def save_result(path, data, dress, weights, offsets, settings, report):
     """Write weights (sparse, by influence name) and pre-skin offsets in the

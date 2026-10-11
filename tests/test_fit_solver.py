@@ -66,6 +66,23 @@ class PoseTests(unittest.TestCase):
             self.assertLess(abs(posed[self.rig.index[joint], 3, 0]), abs(rest_x))
 
 
+class BreastBounceTests(unittest.TestCase):
+    def test_pecs_move_outward_and_rest_is_kept(self):
+        data = FakeData()
+        for name, x in (('LEFT_PEC', 8), ('RIGHT_PEC', -8)):
+            data.joints.append({'name': name, 'path': '|mPelvis|' + name, 'parent': '|mPelvis',
+                                'type': 'joint', 'world_matrix': world(x, 130, 5)})
+        rig = fs.Rig(data)
+        worlds = fs.breast_bounce_worlds(rig, 1.0)
+        self.assertEqual(len(worlds), 6)
+        self.assertTrue(np.allclose(worlds[0], rig.rest))
+        moved_out = worlds[4]                      # sideways, mirrored: both outward
+        self.assertAlmostEqual(moved_out[rig.index['LEFT_PEC'], 3, 0], 9.0)
+        self.assertAlmostEqual(moved_out[rig.index['RIGHT_PEC'], 3, 0], -9.0)
+        self.assertTrue(np.allclose(moved_out[rig.index['mKneeLeft']],
+                                    rig.rest[rig.index['mKneeLeft']]))
+
+
 class ResultFileTests(unittest.TestCase):
     def test_round_trip_and_dense_order(self):
         class Mesh:
