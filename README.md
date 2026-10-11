@@ -50,6 +50,7 @@ In SL fällt die Dehnung nicht auf. Die Form entspricht weiter dem Original bzw.
 | `mcd_fit_solver.py` | Kern: Skelett-FK, Posen/Gangzyklen, Clipping-Messung, Formwerkzeuge (Flare, A-Linie, Rückenlinie, Harmonisieren) | v3 damit gerechnet ✔ |
 | `mcd_fit_apply.py` | legt das Ergebnis als Kopie `..._fit` an (gleicher Bind, neue Ruheform, Gewichte) | Version 0.2, in Maya benutzt ✔ |
 | `mcd_fit_data.py` | liest/prüft den Export außerhalb von Maya, rechnet das Skinning nach | ✔ |
+| `mcd_fit_deform.py` | verformt ein Kleid von einem Mesh-Body auf einen anderen (z. B. Legacy → Reborn), Gewichte unverändert | Legacy → Reborn in Maya geprüft ✔ |
 | `mcd_fit_metrics.py` | Messgerüst in Maya (Clipping, Dehnung, Silhouette, Sprünge pro Frame) | in Maya ungetestet |
 | `mcd_sl_anim.py` | `.anim` schreiben/lesen (`read_anim`, `--dump`), Testanimationen, Teststäbe als DAE, Bake aus Maya | `.anim` in SL getestet ✔ |
 | `lsl/mcd_cloth_state.lsl` | Zustandsskript (Stehen/Gehen/Sitzen …) für Overlay-Animationen, AO bleibt unberührt | in SL getestet ✔, für v3 **nicht nötig** |
@@ -128,6 +129,38 @@ Brust/Bauch/Po.
   der Kreatorin, weil dafür die Historie umgeschrieben wird.
 
 ---
+
+## 5b. Body wechseln: Deform (Legacy → Reborn)
+
+Zwei Exporte mit **demselben Kleid**: einmal auf dem Quell-Body (Legacy), einmal auf dem Ziel-Body (Reborn).
+Beide stehen auf dem SL-Skelett in gleicher Pose. Die Achsen der Szenen dürfen sich unterscheiden (Legacy Y oben, Reborn Z oben).
+
+```
+python mcd_fit_deform.py legacy.json.gz reborn.json.gz mcd_kleid_reborn_deform.json.gz          # genau
+python mcd_fit_deform.py legacy.json.gz reborn.json.gz mcd_kleid_reborn_deform_weich.json.gz --soft
+```
+
+1. Für jeden Punkt des Legacy-Bodys wird der Abstand zur Reborn-Oberfläche gemessen und als glattes Feld gespeichert.
+   Das Feld gilt nur, wo der Reborn-Body vorhanden ist; Kopf und Füße fehlen im Devkit.
+2. Das Kleid wird mit diesem Feld verschoben und über alle Mesh-Teile geglättet. Falten und Silhouette bleiben erhalten.
+3. **genau**: Danach wird nachgeschoben, bis der ursprüngliche Abstand zum Body (0,2–1 cm) wieder stimmt.
+   **weich**: ohne diesen Schritt.
+
+Ergebnis am Thin-Kleid, Ruhepose, gemessen als Stellen im Body (> 2 mm):
+
+| Kleid | Stellen im Body |
+|---|---|
+| Original auf Reborn | 4409 |
+| weich | 911 |
+| genau | 42 |
+
+Reborn ist hinten an Taille und Po bis zu ca. 7 cm voller. In Maya sahen beide Varianten gut aus.
+
+Anwenden in der Reborn-Szene: wie gewohnt mit `mcd_fit_apply.py` auf die geriggte Kleid-Kopie der Reborn-Szene.
+Danach mit Dress Auto Rig 0.5.3 neu riggen und das Gehen-Rezept (Abschnitt 3) gegen Reborn rechnen.
+
+**Stand Legacy (Okt. 2026):** Die Kreatorin hat sich für **v4 mild** entschieden, also v3 plus mehr Raum hinten am Oberschenkel und vorn.
+Davon gibt es zwei geglättete Fassungen: `harmonize_offsets` mit Radius 3/40 und mit Radius 4/100.
 
 ## 6. Nächster Schritt: eigene Frauen-Laufanimation
 
