@@ -187,5 +187,5 @@ git fetch origin claude/adoring-hawking-3n8uvx
 git checkout -b <neuer-branch> origin/claude/adoring-hawking-3n8uvx
 ```
 
-`CLAUDE.md` enthält den Kontext für Claude (Regeln, Technik, Entscheidungen). Für eine neue Session reicht der Hinweis: „Lies README.md, weiter mit Abschnitt 6.“ Dazu den Export
+Für eine neue Session: zuerst `docs/UEBERGABE.md` lesen. Danach reicht der Hinweis: „Lies README.md, weiter mit Abschnitt 6.“ Dazu den Export
 (`export2.json.gz`) und die Gang-Datei (BVH/`.anim`) hochladen.
