@@ -6,7 +6,10 @@
 
 - **Kreatorin** von SL-Mesh-Kleidung. Arbeitet mit Maya 2024 (Python 3, numpy vorhanden, kein scipy).
   Kommunikation: **Deutsch**, einfach, Schritt für Schritt, möglichst Ein-Klick-Werkzeuge.
-- **Repo `soberika/mayatool` ist öffentlich.** Nie committen:
+- **Ab 11.10.2026 nur lokal** mit Claude Code auf dem PC der Kreatorin.
+  Projekt: `C:\mcd\mayatool`. Daten: `C:\mcd\daten` (neben dem Repo, nie darin).
+  Maya 2024 ist installiert; Skripte lassen sich mit `mayapy.exe` selbst testen.
+- **Repo `soberika/mayatool` ist jetzt privat.** Trotzdem nie committen (Lizenz, Größe):
   - Body- oder Devkit-Geometrie
   - Exporte und Ergebnisse (`*.json.gz`)
   - Bilder des Bodys
@@ -14,7 +17,7 @@
 
   `.gitignore` deckt das meiste ab. Vor jedem Commit `git status` prüfen.
 - **Keine PR ohne ausdrückliche Bitte.** Nur auf den Branch der Session pushen.
-- **Daten** liegen privat bei der Kreatorin (OneDrive-Ordner `mcd_mayatool_daten`) und werden bei Bedarf hochgeladen.
+- **Daten** liegen in `C:\mcd\daten` (Inhalt des Übergabe-Zips) und werden direkt von dort gelesen.
 - Commit `78024d1` enthält noch Vorschaubilder in der Historie. Bereinigen nur mit Zustimmung.
 
 ## 2. Was erreicht ist (in SL bestätigt)
@@ -158,7 +161,7 @@ Die Kreatorin hat eine Spezifikation für ein Komplettwerkzeug geschrieben:
 
 ## 7. Dateien für den Neustart
 
-Paket `mcd_paket_uebergabe.zip`. Die Kreatorin legt es in OneDrive ab.
+Paket `mcd_paket_uebergabe.zip`, entpackt nach `C:\mcd\daten`:
 - `1_maya_tools/`: Export, Apply, Auto Rig 0.4
 - `2_ergebnisse/`: alle Kleid-Ergebnisse für Legacy und Reborn
 - `3_exporte/` (**privat**):
@@ -167,6 +170,7 @@ Paket `mcd_paket_uebergabe.zip`. Die Kreatorin legt es in OneDrive ab.
   - `export_reborn_thin_rig.json.gz` (Kleid genau, neu geriggt)
 - `4_second_life/`: das LSL-Skript
 
-**In einer neuen Session hochladen, je nach Aufgabe:**
-- Phase 1: nichts, nur später die Inspector-Berichte
-- Neuberechnung: den passenden Export
+Die Daten werden direkt aus `C:\mcd\daten` gelesen, nichts muss hochgeladen werden.
+Später kommen dazu:
+- `C:\mcd\daten\sl_animationen\`: SL-Standardposen als BVH aus dem SL-Wiki
+- Dress Auto Rig 0.5.3
