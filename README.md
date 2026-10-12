@@ -187,5 +187,5 @@ git fetch origin claude/adoring-hawking-3n8uvx
 git checkout -b <neuer-branch> origin/claude/adoring-hawking-3n8uvx
 ```
 
-Für eine neue Session: zuerst `docs/UEBERGABE.md` lesen. Danach reicht der Hinweis: „Lies README.md, weiter mit Abschnitt 6.“ Dazu den Export
+Für eine neue Session: zuerst `docs/UEBERGABE.md` lesen; das exakte Kleid-Rezept steht in `docs/REZEPT_KLEID.md`. Danach reicht der Hinweis: „Lies README.md, weiter mit Abschnitt 6.“ Dazu den Export
 (`export2.json.gz`) und die Gang-Datei (BVH/`.anim`) hochladen.
